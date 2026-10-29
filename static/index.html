@@ -4,10 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AURA // AI Classroom Attendance System</title>
-    <link rel="stylesheet" href="/static/style.css?v=2.3.1">
+    <link rel="stylesheet" href="/static/style.css?v=2.4.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- PWA manifest for Android "Add to Home Screen" -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#0a0e12">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AURA.AI">
 </head>
 <body>
     <div class="app-layout">
@@ -274,6 +281,13 @@
                                             <button type="button" class="speed-pill" data-interval="2500">Eco (2.5s)</button>
                                         </div>
                                     </div>
+                                    <div class="hud-speed-row">
+                                        <span class="speed-label">Match Sensitivity:</span>
+                                        <div style="display:flex; align-items:center; gap:10px;">
+                                            <input type="range" id="input-hud-threshold" min="0.30" max="0.50" step="0.01" value="0.38" style="accent-color:#22c55e; cursor:pointer; width:110px;">
+                                            <span id="label-hud-threshold" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#4ade80;">0.38</span>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="live-detection-ticker" id="live-ticker">
@@ -388,6 +402,7 @@
                                     <div class="profile-badges">
                                         <span class="badge badge-outline" id="portal-roll">ROLL: --</span>
                                         <span class="badge badge-outline" id="portal-branch">BRANCH: --</span>
+                                        <button type="button" class="btn btn-outline btn-xs" id="btn-show-student-qr" title="Generate QR Code for Student Self-Check" style="padding: 2px 8px; font-size: 11px;">📱 Student QR</button>
                                     </div>
                                 </div>
                             </div>
@@ -471,8 +486,9 @@
                                             <video id="reg-cam-video" autoplay playsinline muted></video>
                                             <canvas id="reg-cam-canvas" style="display:none;"></canvas>
                                         </div>
-                                        <div class="mt-2" style="display: flex; gap: 10px; align-items: center;">
+                                        <div class="mt-2" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                                             <button type="button" class="btn btn-secondary btn-sm" id="btn-reg-snap">📸 Snap Photo</button>
+                                            <button type="button" class="btn btn-outline btn-sm" id="btn-reg-flip-camera">🔄 Flip Camera</button>
                                             <span class="text-muted" style="font-size: 11px;">You can snap multiple angles!</span>
                                         </div>
                                     </div>
@@ -679,7 +695,7 @@
         </div>
     </div>
 
-    <!-- Backdrop for mobile drawer -->
+    <!-- Sidebar Backdrop for mobile drawer -->
     <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
     <!-- Mobile Persistent Bottom Navigation Bar -->
@@ -709,6 +725,50 @@
     <!-- Toast Notification Banner -->
     <div class="toast-container" id="toast-container"></div>
 
-    <script src="/static/app.js?v=2.3.1"></script>
+    <!-- AI Scan Loading Overlay -->
+    <div id="ai-scan-overlay" style="display:none; position:fixed; inset:0; background:rgba(10,14,18,0.92); z-index:9999; flex-direction:column; align-items:center; justify-content:center; gap:20px;">
+        <div style="font-size:48px; animation: pulse-brand 1.2s ease-in-out infinite;">◆</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#94a3b8; letter-spacing:0.1em;" id="ai-scan-overlay-text">SCANNING FACES WITH ARCFACE...</div>
+        <div style="width:220px; height:3px; background:#1e293b; border-radius:2px; overflow:hidden;">
+            <div id="ai-scan-progress-bar" style="height:100%; background:linear-gradient(90deg,#22c55e,#4ade80); width:0%; transition:width 0.4s ease; border-radius:2px;"></div>
+        </div>
+        <div style="font-size:11px; color:#475569;">Please wait — processing classroom photo(s)</div>
+    </div>
+
+    <!-- Custom Confirm Modal (replaces window.confirm for mobile compatibility) -->
+    <div id="modal-confirm" class="modal-backdrop" style="display:none;">
+        <div class="modal-card" style="max-width:400px;">
+            <div class="modal-header">
+                <h3 id="confirm-modal-title">Confirm Action</h3>
+            </div>
+            <div style="padding:0 0 20px 0;">
+                <p id="confirm-modal-message" style="color:#94a3b8; font-size:14px; line-height:1.6;"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="confirm-modal-cancel">Cancel</button>
+                <button type="button" class="btn btn-danger-outline" id="confirm-modal-ok">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Modal for Student Portal -->
+    <div id="modal-qr-code" class="modal-backdrop" style="display:none;">
+        <div class="modal-card" style="max-width:340px; text-align:center;">
+            <div class="modal-header">
+                <h3>Student Self-Check QR</h3>
+                <button class="modal-close" data-close="modal-qr-code">✕</button>
+            </div>
+            <div style="padding:16px 0;">
+                <p style="color:#94a3b8; font-size:12px; margin-bottom:16px;">Student scans this to check attendance on their phone</p>
+                <div id="qr-code-display" style="display:flex; justify-content:center;"></div>
+                <p id="qr-code-url" style="font-size:10px; color:#64748b; margin-top:12px; word-break:break-all;"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-close="modal-qr-code">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=2.4.0"></script>
 </body>
 </html>

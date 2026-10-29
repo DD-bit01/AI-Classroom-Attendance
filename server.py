@@ -7,6 +7,7 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, Response
 from fastapi.staticfiles import StaticFiles
@@ -29,7 +30,16 @@ PHOTOS_DIR.mkdir(exist_ok=True)
 db.init_db()
 db.seed_existing_data()
 
-app = FastAPI(title="AI Classroom Attendance System", version="1.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Pre-warm the FaceEngine at startup so the first recognition is instant."""
+    import asyncio
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, get_face_engine)
+    print("[Server] FaceEngine pre-warmed and ready.")
+    yield
+
+app = FastAPI(title="AI Classroom Attendance System", version="2.3.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -426,7 +436,8 @@ async def toggle_student_attendance(session_id: int, payload: AttendanceUpdateMo
 async def recognize_group_attendance(
     session_id: int = Form(...),
     image: Optional[UploadFile] = File(None),
-    images: Optional[List[UploadFile]] = File(None)
+    images: Optional[List[UploadFile]] = File(None),
+    threshold: float = Form(0.38)
 ):
     session = db.get_session_by_id(session_id)
     if not session:
@@ -459,7 +470,7 @@ async def recognize_group_attendance(
             known_embeddings=known_emb,
             known_student_ids=known_ids,
             id_meta_map=id_meta,
-            threshold=0.36,
+            threshold=threshold,
             draw_annotations=True
         )
 
@@ -507,6 +518,7 @@ async def recognize_group_attendance(
 class LiveFrameModel(BaseModel):
     session_id: int
     frame_b64: str
+    threshold: Optional[float] = 0.38
 
 @app.post("/api/attendance/recognize-frame")
 async def recognize_live_webcam_frame(payload: LiveFrameModel):
@@ -531,7 +543,7 @@ async def recognize_live_webcam_frame(payload: LiveFrameModel):
         known_embeddings=known_emb,
         known_student_ids=known_ids,
         id_meta_map=id_meta,
-        threshold=0.36,
+        threshold=payload.threshold or 0.38,
         draw_annotations=True
     )
 

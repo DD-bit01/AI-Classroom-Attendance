@@ -1,0 +1,26 @@
+{
+  "name": "AURA AI Attendance System",
+  "short_name": "AURA.AI",
+  "description": "AI-powered classroom attendance using YuNet + ArcFace facial recognition",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0e12",
+  "theme_color": "#0a0e12",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%230a0e12'/><text x='50%' y='55%' font-size='100' text-anchor='middle' dominant-baseline='middle' fill='white'>◆</text><text x='50%' y='82%' font-size='20' text-anchor='middle' fill='%23aaa' font-family='monospace'>AURA</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%230a0e12'/><text x='50%' y='52%' font-size='280' text-anchor='middle' dominant-baseline='middle' fill='white'>◆</text><text x='50%' y='82%' font-size='52' text-anchor='middle' fill='%23aaa' font-family='monospace'>AURA.AI</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "screenshots": []
+}

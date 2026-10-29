@@ -464,7 +464,7 @@ def create_session(course_id: int, title: str, session_date: str = None, session
     if not session_date:
         session_date = now.strftime("%Y-%m-%d")
     if not session_time:
-        session_time = now.strftime("%I:%M %p")
+        session_time = now.strftime("%H:%M")
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(

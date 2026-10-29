@@ -2395,3 +2395,121 @@ select.form-control option {
     align-items: center;
 }
 
+
+/* ============================================================
+   AURA v2.4 — New additions: PWA, overlays, mobile fixes
+   ============================================================ */
+
+/* Pulsing brand logo animation (used in AI scan overlay) */
+@keyframes pulse-brand {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.55; transform: scale(0.88); }
+}
+
+/* AI Scan loading overlay — shown during face recognition */
+#ai-scan-overlay {
+    display: none;
+}
+
+/* Registration camera — mirror front camera visually */
+.reg-cam-mirrored {
+    transform: scaleX(-1);
+}
+
+/* Webcam video — mirror front camera visually */
+.webcam-mirrored {
+    transform: scaleX(-1);
+}
+
+/* QR Code container */
+#qr-code-display canvas,
+#qr-code-display img {
+    border-radius: 8px;
+    border: 3px solid var(--border-default, #27272a);
+}
+
+/* Custom confirm modal — OK button (danger) */
+#confirm-modal-ok {
+    background: transparent;
+    border: 1px solid #ef4444;
+    color: #f87171;
+    padding: 8px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.15s, color 0.15s;
+}
+#confirm-modal-ok:hover {
+    background: rgba(239, 68, 68, 0.12);
+}
+
+/* Reg camera flip button */
+#btn-reg-flip-camera {
+    font-size: 12px;
+    padding: 5px 10px;
+}
+
+/* Server offline toast (error state with retry) */
+.toast-retry-btn {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    margin-left: 8px;
+}
+
+/* PWA install prompt banner */
+.pwa-install-banner {
+    position: fixed;
+    bottom: 72px;
+    left: 12px;
+    right: 12px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 900;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    font-size: 13px;
+    color: #e2e8f0;
+}
+.pwa-install-banner .pwa-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+.pwa-install-banner .pwa-text {
+    flex: 1;
+    line-height: 1.4;
+}
+.pwa-install-banner .pwa-text small {
+    display: block;
+    color: #64748b;
+    font-size: 11px;
+    margin-top: 2px;
+}
+.pwa-install-btn {
+    background: #22c55e;
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.pwa-install-dismiss {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 4px;
+}

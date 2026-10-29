@@ -1,6 +1,141 @@
 /**
  * AURA // AI Classroom Attendance System Frontend Controller
+ * v2.4.0 — Mobile/Android fixes, PWA support, custom confirm modal
  */
+
+// ======================= UTILITIES: isMobile ======================= //
+const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+// ======================= SERVICE WORKER (PWA) ======================= //
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+    });
+}
+
+// ======================= PWA Install Prompt ======================= //
+let _deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    _deferredInstallPrompt = e;
+    // Show install banner only on mobile if not already installed
+    if (isMobile && !window.matchMedia('(display-mode: standalone)').matches) {
+        showPwaInstallBanner();
+    }
+});
+
+function showPwaInstallBanner() {
+    if (document.getElementById('pwa-install-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'pwa-install-banner';
+    banner.className = 'pwa-install-banner';
+    banner.innerHTML = `
+        <span class="pwa-icon">◆</span>
+        <div class="pwa-text">
+            <strong>Install AURA.AI</strong>
+            <small>Add to Home Screen for quick classroom access</small>
+        </div>
+        <button class="pwa-install-btn" id="pwa-do-install">Install</button>
+        <button class="pwa-install-dismiss" id="pwa-dismiss">✕</button>
+    `;
+    document.body.appendChild(banner);
+    document.getElementById('pwa-do-install').addEventListener('click', async () => {
+        if (_deferredInstallPrompt) {
+            _deferredInstallPrompt.prompt();
+            const { outcome } = await _deferredInstallPrompt.userChoice;
+            _deferredInstallPrompt = null;
+        }
+        banner.remove();
+    });
+    document.getElementById('pwa-dismiss').addEventListener('click', () => banner.remove());
+}
+
+// ======================= CUSTOM CONFIRM MODAL ======================= //
+// Replaces window.confirm() which is blocked on many Android WebViews
+
+function showConfirm(title, message) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('modal-confirm');
+        const titleEl = document.getElementById('confirm-modal-title');
+        const msgEl = document.getElementById('confirm-modal-message');
+        const okBtn = document.getElementById('confirm-modal-ok');
+        const cancelBtn = document.getElementById('confirm-modal-cancel');
+
+        if (!modal) {
+            // Fallback if modal not in DOM yet
+            resolve(window.confirm(message));
+            return;
+        }
+
+        titleEl.textContent = title;
+        msgEl.textContent = message;
+        modal.style.display = 'flex';
+
+        const cleanup = () => { modal.style.display = 'none'; };
+
+        const onOk = () => { cleanup(); resolve(true); okBtn.removeEventListener('click', onOk); cancelBtn.removeEventListener('click', onCancel); };
+        const onCancel = () => { cleanup(); resolve(false); okBtn.removeEventListener('click', onOk); cancelBtn.removeEventListener('click', onCancel); };
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+    });
+}
+
+// ======================= AI SCAN LOADING OVERLAY ======================= //
+
+function showScanOverlay(text = 'SCANNING FACES WITH ARCFACE...') {
+    const overlay = document.getElementById('ai-scan-overlay');
+    const textEl = document.getElementById('ai-scan-overlay-text');
+    const bar = document.getElementById('ai-scan-progress-bar');
+    if (!overlay) return;
+    if (textEl) textEl.textContent = text;
+    overlay.style.display = 'flex';
+    if (bar) {
+        bar.style.width = '0%';
+        // Animate progress bar to simulate processing
+        let pct = 0;
+        const tick = setInterval(() => {
+            pct += Math.random() * 12;
+            if (pct >= 92) { clearInterval(tick); pct = 92; }
+            bar.style.width = pct + '%';
+        }, 400);
+        overlay._tickInterval = tick;
+    }
+}
+
+function hideScanOverlay() {
+    const overlay = document.getElementById('ai-scan-overlay');
+    const bar = document.getElementById('ai-scan-progress-bar');
+    if (!overlay) return;
+    if (bar) {
+        if (overlay._tickInterval) clearInterval(overlay._tickInterval);
+        bar.style.width = '100%';
+    }
+    setTimeout(() => { overlay.style.display = 'none'; if (bar) bar.style.width = '0%'; }, 350);
+}
+
+// ======================= GLOBAL FETCH ERROR HANDLER ======================= //
+
+let _serverOfflineToast = null;
+const _origFetch = window.fetch.bind(window);
+window.fetch = async function(...args) {
+    try {
+        const response = await _origFetch(...args);
+        if (_serverOfflineToast) { _serverOfflineToast.remove(); _serverOfflineToast = null; }
+        return response;
+    } catch (err) {
+        // Network error — server unreachable
+        if (!_serverOfflineToast) {
+            _serverOfflineToast = document.createElement('div');
+            _serverOfflineToast.className = 'toast error';
+            _serverOfflineToast.innerHTML = `<span>✕</span><span>Server unreachable — check WiFi connection</span><button class="toast-retry-btn" onclick="window.location.reload()">Retry</button>`;
+            _serverOfflineToast.style.cssText = 'opacity:1; position:fixed; bottom:80px; right:16px; z-index:9999;';
+            const container = document.getElementById('toast-container');
+            if (container) container.appendChild(_serverOfflineToast);
+        }
+        throw err;
+    }
+};
 
 // Application State
 const state = {
@@ -20,6 +155,8 @@ const state = {
     regCamStream: null,
     regCapturedB64: null,
     webcamFacingMode: 'environment', // Back camera ideal for classrooms
+    regFacingMode: 'user', // Selfie camera default for student portrait
+    threshold: 0.38,
     webcamScanInterval: 1400,
     boxStyle: 'minimal', // 'minimal' | 'corners' | 'none'
     showNameTags: true,
@@ -110,6 +247,8 @@ const el = {
     toggleHudLaser: document.getElementById('toggle-hud-laser'),
     toggleHudAutoMark: document.getElementById('toggle-hud-automark'),
     speedPills: document.querySelectorAll('.speed-pill'),
+    inputHudThreshold: document.getElementById('input-hud-threshold'),
+    labelHudThreshold: document.getElementById('label-hud-threshold'),
     
     // Roster Table
     rosterCountLabel: document.getElementById('roster-count-label'),
@@ -142,6 +281,10 @@ const el = {
     portalEligibilityTag: document.getElementById('portal-eligibility-tag'),
     portalCoursesGrid: document.getElementById('portal-courses-grid'),
     portalHistoryTbody: document.getElementById('portal-history-tbody'),
+    btnShowStudentQr: document.getElementById('btn-show-student-qr'),
+    modalQrCode: document.getElementById('modal-qr-code'),
+    qrCodeDisplay: document.getElementById('qr-code-display'),
+    qrCodeUrl: document.getElementById('qr-code-url'),
     
     // Registration Tab
     studentRegForm: document.getElementById('student-reg-form'),
@@ -156,6 +299,7 @@ const el = {
     regCamVideo: document.getElementById('reg-cam-video'),
     regCamCanvas: document.getElementById('reg-cam-canvas'),
     btnRegSnap: document.getElementById('btn-reg-snap'),
+    btnRegFlipCamera: document.getElementById('btn-reg-flip-camera'),
     regPreviewBox: document.getElementById('reg-preview-box'),
     regPreviewLabel: document.getElementById('reg-preview-label'),
     regPhotosGallery: document.getElementById('reg-photos-gallery'),
@@ -643,7 +787,12 @@ if (el.btnMobileSnapPhoto && el.groupCameraInput) {
 if (el.btnAddMoreGroupPhoto && el.groupCameraInput) {
     el.btnAddMoreGroupPhoto.addEventListener('click', (e) => {
         e.stopPropagation();
-        el.groupCameraInput.click();
+        // On mobile: open camera directly. On desktop: open file gallery picker.
+        if (isMobile) {
+            el.groupCameraInput.click();
+        } else {
+            el.groupFileInput.click();
+        }
     });
 }
 
@@ -875,8 +1024,12 @@ el.btnProcessGroup.addEventListener('click', async () => {
     el.btnProcessGroup.disabled = true;
     el.btnProcessGroup.innerHTML = `<span>Scanning Faces with ArcFace across ${state.stagedGroupPhotos.length} photo(s)...</span>`;
 
+    // Show fullscreen loading overlay (critical for mobile to prevent double-taps)
+    showScanOverlay(`SCANNING ${state.stagedGroupPhotos.length} PHOTO(S) WITH ARCFACE...`);
+
     const formData = new FormData();
     formData.append('session_id', state.selectedSessionId);
+    formData.append('threshold', state.threshold || 0.38);
     for (const item of state.stagedGroupPhotos) {
         formData.append('images', item.file);
     }
@@ -928,6 +1081,7 @@ el.btnProcessGroup.addEventListener('click', async () => {
         console.error(err);
         showToast(err.message, 'error');
     } finally {
+        hideScanOverlay();
         el.btnProcessGroup.disabled = false;
         if (el.btnProcessGroupText) {
             el.btnProcessGroupText.textContent = `⚡ Scan & Identify Faces in ${state.stagedGroupPhotos.length} Photo${state.stagedGroupPhotos.length > 1 ? 's' : ''}`;
@@ -1039,6 +1193,15 @@ if (el.speedPills) {
     });
 }
 
+// Match Sensitivity (Threshold) Slider
+if (el.inputHudThreshold) {
+    el.inputHudThreshold.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        state.threshold = val;
+        if (el.labelHudThreshold) el.labelHudThreshold.textContent = val.toFixed(2);
+    });
+}
+
 if (el.btnFlipWebcam) {
     el.btnFlipWebcam.addEventListener('click', async () => {
         state.webcamFacingMode = state.webcamFacingMode === 'environment' ? 'user' : 'environment';
@@ -1048,6 +1211,18 @@ if (el.btnFlipWebcam) {
             startLiveWebcam();
         }
     });
+}
+
+// ResizeObserver: keep HUD canvas synced when phone rotates or window resizes
+if (el.webcamHudCanvas && typeof ResizeObserver !== 'undefined') {
+    const hudResizeObserver = new ResizeObserver(() => {
+        if (el.webcamHudCanvas) {
+            el.webcamHudCanvas.width = el.webcamHudCanvas.clientWidth;
+            el.webcamHudCanvas.height = el.webcamHudCanvas.clientHeight;
+        }
+    });
+    const webcamWrapper = el.webcamHudCanvas.closest('.webcam-viewport') || el.webcamHudCanvas.parentElement;
+    if (webcamWrapper) hudResizeObserver.observe(webcamWrapper);
 }
 
 async function startLiveWebcam() {
@@ -1071,6 +1246,8 @@ async function startLiveWebcam() {
         };
         state.webcamStream = await navigator.mediaDevices.getUserMedia(constraints);
         el.webcamVideo.srcObject = state.webcamStream;
+        // Mirror video for front (selfie) camera — looks natural to user; canvas capture is NOT mirrored
+        el.webcamVideo.classList.toggle('webcam-mirrored', state.webcamFacingMode === 'user');
         el.btnStartWebcam.disabled = true;
         el.btnStopWebcam.disabled = false;
         el.btnSnapFrame.disabled = false;
@@ -1109,6 +1286,7 @@ function stopLiveWebcam() {
         ctx.clearRect(0, 0, el.webcamHudCanvas.width, el.webcamHudCanvas.height);
     }
     el.webcamVideo.srcObject = null;
+    el.webcamVideo.classList.remove('webcam-mirrored');
     el.btnStartWebcam.disabled = false;
     el.btnStopWebcam.disabled = true;
     el.btnSnapFrame.disabled = true;
@@ -1300,7 +1478,8 @@ async function processWebcamFrame(isManualSnap = false) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 session_id: state.selectedSessionId,
-                frame_b64: frameB64
+                frame_b64: frameB64,
+                threshold: state.threshold || 0.38
             })
         });
 
@@ -1522,8 +1701,27 @@ async function fetchStudentStats(rollNo) {
     }
 }
 
+let currentPortalRoll = '';
+
+if (el.btnShowStudentQr) {
+    el.btnShowStudentQr.addEventListener('click', () => {
+        if (!currentPortalRoll) return;
+        const host = window.location.host;
+        const protocol = window.location.protocol;
+        const studentUrl = `${protocol}//${host}/?roll=${encodeURIComponent(currentPortalRoll)}`;
+        
+        if (el.qrCodeUrl) el.qrCodeUrl.textContent = studentUrl;
+        if (el.qrCodeDisplay) {
+            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(studentUrl)}&margin=4`;
+            el.qrCodeDisplay.innerHTML = `<img src="${qrApiUrl}" alt="Student QR" width="180" height="180" style="border-radius:8px; border:2px solid #334155; background:#fff; padding:6px;">`;
+        }
+        openModal('modal-qr-code');
+    });
+}
+
 function renderStudentPortal(data) {
     const s = data.student;
+    currentPortalRoll = s.roll_no;
     el.studentResultsView.style.display = 'block';
 
     // Profile Details
@@ -1615,9 +1813,10 @@ async function startRegCamera() {
 
     try {
         state.regCamStream = await navigator.mediaDevices.getUserMedia({
-            video: { width: 480, height: 480, facingMode: 'user' }
+            video: { width: 480, height: 480, facingMode: state.regFacingMode || 'user' }
         });
         el.regCamVideo.srcObject = state.regCamStream;
+        el.regCamVideo.classList.toggle('reg-cam-mirrored', (state.regFacingMode || 'user') === 'user');
     } catch (err) {
         showToast('Camera access denied: ' + err.message, 'error');
     }
@@ -1629,6 +1828,18 @@ function stopRegCamera() {
         state.regCamStream = null;
     }
     el.regCamVideo.srcObject = null;
+    el.regCamVideo.classList.remove('reg-cam-mirrored');
+}
+
+if (el.btnRegFlipCamera) {
+    el.btnRegFlipCamera.addEventListener('click', () => {
+        state.regFacingMode = (state.regFacingMode === 'user') ? 'environment' : 'user';
+        showToast(`Registration camera: ${state.regFacingMode === 'user' ? 'Front (Selfie)' : 'Rear (Portrait)'}`);
+        if (state.regCamStream) {
+            stopRegCamera();
+            startRegCamera();
+        }
+    });
 }
 
 state.regSelectedPhotos = [];
@@ -1907,7 +2118,11 @@ window.openCourseRosterModal = async function(courseId) {
 
 window.unenrollStudentFromCourse = async function(studentId, studentName) {
     if (!state.currentManageCourseId) return;
-    if (!confirm(`Are you sure you want to remove ${studentName} from this course?`)) return;
+    const confirmed = await showConfirm(
+        'Remove Student from Course',
+        `Remove "${studentName}" from this course? Their attendance records for this course will also be deleted.`
+    );
+    if (!confirmed) return;
 
     try {
         const res = await fetch(`/api/courses/${state.currentManageCourseId}/unenroll`, {
@@ -1986,8 +2201,11 @@ el.formCreateCourse.addEventListener('submit', async (e) => {
 });
 
 window.deleteCourse = async function(courseId, courseCode, courseName) {
-    const confirmMsg = `Are you sure you want to delete course "${courseCode}: ${courseName}"?\n\n⚠️ WARNING: This will permanently delete this course along with all its scheduled class sessions, attendance records, and student enrollments.`;
-    if (!confirm(confirmMsg)) return;
+    const confirmed = await showConfirm(
+        `Delete Course: ${courseCode}`,
+        `Permanently delete "${courseCode}: ${courseName}"?\n\nThis will also delete all its sessions, attendance records, and student enrollments. This cannot be undone.`
+    );
+    if (!confirmed) return;
 
     try {
         const res = await fetch(`/api/courses/${courseId}`, {
@@ -2074,4 +2292,13 @@ window.addEventListener('DOMContentLoaded', async () => {
     await loadSessions();
     await loadStudents();
     loadNetworkInfo();
+
+    // Auto-search from QR code or direct link: ?roll=2024CS001
+    const urlParams = new URLSearchParams(window.location.search);
+    const rollParam = urlParams.get('roll');
+    if (rollParam) {
+        switchTab('student-portal');
+        if (el.studentPortalSearch) el.studentPortalSearch.value = rollParam;
+        fetchStudentStats(rollParam);
+    }
 });
