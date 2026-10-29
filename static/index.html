@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA // AI Classroom Attendance System</title>
+    <link rel="stylesheet" href="/static/style.css?v=2.3.1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-symbol">◆</div>
+                <div class="brand-text">
+                    <h2>AURA.AI</h2>
+                    <span>ATTENDANCE CORE</span>
+                </div>
+                <button class="mobile-drawer-close" id="btn-close-sidebar" aria-label="Close Menu">✕</button>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="take-attendance">
+                    <span class="nav-icon">◈</span>
+                    <span class="nav-label">Take Attendance</span>
+                </button>
+                <button class="nav-item" data-tab="sessions">
+                    <span class="nav-label">Class Sessions</span>
+                    <span class="nav-icon">◻</span>
+                </button>
+                <button class="nav-item" data-tab="student-portal">
+                    <span class="nav-icon">◉</span>
+                    <span class="nav-label">Student Portal</span>
+                </button>
+                <button class="nav-item" data-tab="registration">
+                    <span class="nav-icon">⊕</span>
+                    <span class="nav-label">Register Student</span>
+                </button>
+                <button class="nav-item" data-tab="courses">
+                    <span class="nav-icon">▤</span>
+                    <span class="nav-label">Courses & Roster</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-downloads">
+                <span class="downloads-label">PROJECT DOWNLOADS</span>
+                <a href="/api/download/presentation" class="sidebar-download-link" download>
+                    <span class="download-icon">📊</span>
+                    <span>Presentation (PPT)</span>
+                </a>
+                <a href="/api/download/math-ml-guide" class="sidebar-download-link" download>
+                    <span class="download-icon">📘</span>
+                    <span>Math & ML Guide (PDF)</span>
+                </a>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="system-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">ArcFace // YuNet Active</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Topbar Header -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-menu-toggle" id="btn-mobile-menu" aria-label="Toggle Navigation">☰</button>
+                    <div class="topbar-title">
+                        <h1 id="page-title">Take Attendance</h1>
+                        <p id="page-subtitle">Facial recognition for classroom sessions via Group Photo or Live Camera</p>
+                    </div>
+                </div>
+                <div class="topbar-actions">
+                    <div class="mobile-ip-pill desktop-only" id="mobile-ip-badge" title="Connect your smartphone on the same WiFi">
+                        <span class="pulse-indicator"></span>
+                        <span class="pill-label">📱 Phone WiFi URL:</span>
+                        <a id="mobile-ip-link" href="#" target="_blank" class="pill-url">loading...</a>
+                    </div>
+                    <a href="/api/download/presentation" class="btn btn-outline btn-sm desktop-only" download title="Download full AI project presentation with real predictions">
+                        <span>📊</span> Project PPT
+                    </a>
+                    <a href="/api/download/math-ml-guide" class="btn btn-outline btn-sm desktop-only" download title="Download complete Mathematical & Machine Learning Foundations PDF Guide">
+                        <span>📘</span> Math & ML PDF
+                    </a>
+                    <button class="btn btn-secondary btn-sm" id="btn-quick-new-session">+ New Session</button>
+                </div>
+            </header>
+
+            <div class="content-body">
+
+                <!-- TAB 1: TAKE ATTENDANCE -->
+                <section id="tab-take-attendance" class="tab-pane active">
+                    <!-- Session Selector Bar -->
+                    <div class="card selector-card">
+                        <div class="card-grid-2">
+                            <div class="form-group">
+                                <label for="attendance-session-select">Select Active Session</label>
+                                <select id="attendance-session-select" class="form-control">
+                                    <option value="">-- Choose a Class Session --</option>
+                                </select>
+                            </div>
+                            <div class="session-stats-bar" id="session-summary-box">
+                                <div class="stat-pill">
+                                    <span class="stat-label">Course</span>
+                                    <span class="stat-val" id="stat-course-code">--</span>
+                                </div>
+                                <div class="stat-pill">
+                                    <span class="stat-label">Enrolled</span>
+                                    <span class="stat-val" id="stat-enrolled">0</span>
+                                </div>
+                                <div class="stat-pill highlight">
+                                    <span class="stat-label">Present</span>
+                                    <span class="stat-val" id="stat-present">0</span>
+                                </div>
+                                <div class="stat-pill">
+                                    <span class="stat-label">Rate</span>
+                                    <span class="stat-val" id="stat-rate">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mode Toggle: Group Photo vs Live Webcam -->
+                    <div class="mode-tabs-container">
+                        <div class="mode-tabs">
+                            <button class="mode-btn active" data-mode="group-photo">
+                                <span class="mode-icon">📷</span> Group Photo AI Upload
+                            </button>
+                            <button class="mode-btn" data-mode="live-webcam">
+                                <span class="mode-icon">📹</span> Live Webcam Stream
+                            </button>
+                        </div>
+                        <div class="export-actions">
+                            <a id="btn-export-excel" href="#" class="btn btn-outline btn-sm">
+                                <span>📥 Session Excel</span>
+                            </a>
+                            <a id="btn-export-csv" href="#" class="btn btn-outline btn-sm">
+                                <span>📄 Session CSV</span>
+                            </a>
+                            <a id="btn-export-course-excel" href="#" class="btn btn-outline btn-sm btn-course-report">
+                                <span>📊 Course Full Sheet</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- ATTENDANCE WORKSPACE GRID -->
+                    <div class="workspace-grid">
+                        <!-- Left Panel: Input / Camera / Image Review -->
+                        <div class="workspace-panel panel-visual">
+                            <!-- Group Photo Mode -->
+                            <div id="mode-panel-group-photo" class="mode-content active">
+                                <!-- Mobile Quick Camera Buttons -->
+                                <div class="mobile-camera-bar">
+                                    <button type="button" class="btn btn-primary btn-sm flex-1" id="btn-mobile-snap-photo">
+                                        📸 Tap to Click Photo (Phone Camera)
+                                    </button>
+                                    <button type="button" class="btn btn-outline btn-sm flex-1" id="btn-mobile-gallery-photo">
+                                        📁 Choose from Gallery
+                                    </button>
+                                </div>
+                                <input type="file" id="group-camera-input" accept="image/*" capture="environment" style="display:none;">
+
+                                <div class="upload-dropzone" id="group-dropzone">
+                                    <input type="file" id="group-file-input" accept="image/*" multiple class="file-input-hidden">
+                                    <div class="dropzone-inner" id="dropzone-prompt">
+                                        <div class="drop-icon">
+                                            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/>
+                                                <path d="M12 12v9"/>
+                                                <path d="m16 16-4-4-4 4"/>
+                                            </svg>
+                                        </div>
+                                        <h3>Upload Classroom Group Photos</h3>
+                                        <p>Tap camera above to snap multiple classroom angles (Left, Center, Right)</p>
+                                        <span class="file-hint">Phone Camera, JPG, PNG, WEBP — Multi-angle support enabled</span>
+                                    </div>
+                                    <div class="dropzone-preview" id="group-preview-wrapper" style="display:none;">
+                                        <div class="staged-photos-header">
+                                            <span class="staged-badge" id="staged-photos-count">1 Photo Staged</span>
+                                            <button type="button" class="btn btn-outline btn-sm" id="btn-add-more-group-photo" style="padding: 4px 10px; font-size: 11px;">
+                                                📸 + Snap Another Angle
+                                            </button>
+                                        </div>
+                                        <div class="main-preview-container">
+                                            <img id="group-preview-img" alt="Uploaded classroom">
+                                            <div class="preview-overlay-actions">
+                                                <button type="button" class="btn btn-outline btn-sm" id="btn-toggle-group-annotation" style="display:none;">👁️ Toggle Clean/Boxes</button>
+                                                <button type="button" class="btn btn-dark btn-sm remove-img-btn" id="btn-clear-group-img">✕ Clear All</button>
+                                            </div>
+                                        </div>
+                                        <!-- Staged angles thumbnails switcher -->
+                                        <div class="staged-thumbnails-row" id="staged-thumbnails-row" style="display:none;"></div>
+                                    </div>
+                                </div>
+
+                                <div class="panel-actions">
+                                    <button class="btn btn-primary btn-block" id="btn-process-group">
+                                        <span id="btn-process-group-text">⚡ Scan & Identify Faces</span>
+                                    </button>
+                                </div>
+
+                                <div id="ai-scan-summary" class="ai-results-card" style="display:none;">
+                                    <div class="results-header">
+                                        <h4>AI Detection Results</h4>
+                                        <span class="badge badge-white" id="scan-faces-count">0 faces</span>
+                                    </div>
+                                    <p id="scan-recognized-names" class="scanned-names"></p>
+                                </div>
+                            </div>
+
+                            <!-- Live Webcam Mode -->
+                            <div id="mode-panel-live-webcam" class="mode-content">
+                                <div class="mobile-https-tip" id="mobile-webcam-tip" style="padding:10px 14px; background:rgba(56, 189, 248, 0.08); border:1px solid rgba(56, 189, 248, 0.25); border-radius:8px; font-size:12px; margin-bottom:12px; color:#bae6fd;">
+                                    💡 <strong>Mobile / Android Notice:</strong> Continuous webcam streaming requires HTTPS on Android Chrome. For instant 1-tap phone camera captures, tap <strong>Group Photo AI</strong> above!
+                                </div>
+                                <div class="webcam-viewport">
+                                    <video id="webcam-video" autoplay playsinline muted></video>
+                                    <canvas id="webcam-canvas" style="display:none;"></canvas>
+                                    <!-- High-Tech Animated HUD Overlay Canvas -->
+                                    <canvas id="webcam-hud-canvas" class="webcam-hud-canvas"></canvas>
+                                    <div class="webcam-overlay" id="webcam-overlay">
+                                        <div class="hud-laser-line paused" id="hud-laser-line"></div>
+                                        <div class="hud-status" id="webcam-hud-status">CAMERA OFFLINE</div>
+                                        <div class="hud-fps-badge" id="webcam-hud-fps">AI RECOGNITION ACTIVE</div>
+                                    </div>
+                                </div>
+
+                                <div class="webcam-controls">
+                                    <button class="btn btn-primary" id="btn-start-webcam">Start Live Camera</button>
+                                    <button class="btn btn-outline" id="btn-flip-webcam">🔄 Flip Camera</button>
+                                    <button class="btn btn-outline" id="btn-toggle-boxes">👁️ Hide Boxes</button>
+                                    <button class="btn btn-secondary" id="btn-stop-webcam" disabled>Stop</button>
+                                    <button class="btn btn-outline" id="btn-snap-frame" disabled>Snap & Mark</button>
+                                </div>
+
+                                <!-- Box Customization & Live Controls Bar -->
+                                <div class="hud-options-card">
+                                    <div class="hud-options-header">
+                                        <span class="hud-opt-title">⚙️ Face Recognition Box & Overlay Options</span>
+                                    </div>
+                                    <div class="hud-speed-row" style="margin-top: 8px; padding-top: 0; border-top: none;">
+                                        <span class="speed-label">Box Design:</span>
+                                        <div class="speed-pill-group">
+                                            <button type="button" class="style-pill active" data-style="minimal">✨ Minimal Pill</button>
+                                            <button type="button" class="style-pill" data-style="corners">Corner Brackets</button>
+                                            <button type="button" class="style-pill" data-style="none">🚫 Hidden (Clean Video)</button>
+                                        </div>
+                                    </div>
+                                    <div class="hud-toggles-grid">
+                                        <label class="hud-toggle-item">
+                                            <input type="checkbox" id="toggle-hud-labels" checked>
+                                            <span class="toggle-text">Show Student Name Tag</span>
+                                        </label>
+                                        <label class="hud-toggle-item">
+                                            <input type="checkbox" id="toggle-hud-laser">
+                                            <span class="toggle-text">Laser Beam</span>
+                                        </label>
+                                        <label class="hud-toggle-item">
+                                            <input type="checkbox" id="toggle-hud-automark" checked>
+                                            <span class="toggle-text">Auto-Mark Attendance</span>
+                                        </label>
+                                    </div>
+                                    <div class="hud-speed-row">
+                                        <span class="speed-label">Scan Frequency:</span>
+                                        <div class="speed-pill-group">
+                                            <button type="button" class="speed-pill" data-interval="800">⚡ Turbo (0.8s)</button>
+                                            <button type="button" class="speed-pill active" data-interval="1400">Normal (1.4s)</button>
+                                            <button type="button" class="speed-pill" data-interval="2500">Eco (2.5s)</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="live-detection-ticker" id="live-ticker">
+                                    <div class="ticker-label">Live Recognized:</div>
+                                    <div class="ticker-tags" id="ticker-tags">
+                                        <span class="muted-tag">No targets detected in optical frame</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Panel: Live Attendance Roster -->
+                        <div class="workspace-panel panel-roster">
+                            <div class="roster-header">
+                                <div>
+                                    <h3>Session Attendance Sheet</h3>
+                                    <span class="text-muted" id="roster-count-label">0 students</span>
+                                </div>
+                                <div class="roster-status-pills" id="roster-summary-pills">
+                                    <span class="badge badge-absent" id="roster-absent-badge">0 Absent (at top)</span>
+                                    <span class="badge badge-present" id="roster-present-badge">0 Present</span>
+                                </div>
+                            </div>
+
+                            <div class="table-container">
+                                <table class="data-table" id="roster-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Roll No</th>
+                                            <th>Student</th>
+                                            <th>Status</th>
+                                            <th>Confidence</th>
+                                            <th>Method</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="roster-tbody">
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted">Select a session above to load student roster</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 2: CLASS SESSIONS -->
+                <section id="tab-sessions" class="tab-pane">
+                    <div class="section-header-row">
+                        <div>
+                            <h2>Class Sessions Management</h2>
+                            <p class="text-muted">Create and manage attendance sessions across all courses</p>
+                        </div>
+                        <button class="btn btn-primary" id="btn-open-create-session-modal">+ Create New Session</button>
+                    </div>
+
+                    <div class="sessions-filter-bar">
+                        <select id="filter-session-course" class="form-control" style="max-width: 280px;">
+                            <option value="">All Courses</option>
+                        </select>
+                    </div>
+
+                    <div class="table-container card">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Course</th>
+                                    <th>Session Title</th>
+                                    <th>Attendance Status</th>
+                                    <th>Turnout %</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sessions-table-body">
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">Loading sessions...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- TAB 3: STUDENT PORTAL -->
+                <section id="tab-student-portal" class="tab-pane">
+                    <div class="student-search-box card">
+                        <div class="form-row">
+                            <div class="form-group flex-1">
+                                <label for="student-portal-search">Enter Student Roll Number or Select Name</label>
+                                <div class="input-with-button">
+                                    <input type="text" id="student-portal-search" class="form-control" placeholder="e.g. 2024CS001" autocomplete="off">
+                                    <select id="student-portal-select" class="form-control" style="max-width: 220px;">
+                                        <option value="">-- Quick Select --</option>
+                                    </select>
+                                    <button class="btn btn-primary" id="btn-fetch-student-stats">Search Record</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Student Results Overview -->
+                    <div id="student-results-view" style="display:none;">
+                        <!-- Student Profile Card & Overall Score -->
+                        <div class="profile-hero card">
+                            <div class="profile-meta">
+                                <div class="profile-avatar" id="portal-avatar">
+                                    <span>👤</span>
+                                </div>
+                                <div class="profile-info">
+                                    <h2 id="portal-name">Student Name</h2>
+                                    <div class="profile-badges">
+                                        <span class="badge badge-outline" id="portal-roll">ROLL: --</span>
+                                        <span class="badge badge-outline" id="portal-branch">BRANCH: --</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="overall-stat-card">
+                                <div class="circular-progress-wrap">
+                                    <div class="gauge-number" id="portal-overall-pct">0%</div>
+                                    <div class="gauge-label">Overall Attendance</div>
+                                </div>
+                                <div class="attendance-status-tag" id="portal-eligibility-tag">Eligible</div>
+                            </div>
+                        </div>
+
+                        <!-- Course-wise Cards Breakdown -->
+                        <h3 class="section-title">Subject-wise Attendance Breakdown</h3>
+                        <div class="course-cards-grid" id="portal-courses-grid">
+                            <!-- Cards inserted dynamically -->
+                        </div>
+
+                        <!-- Session History Table -->
+                        <h3 class="section-title" style="margin-top: 2rem;">Recent Session Log</h3>
+                        <div class="card table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Course</th>
+                                        <th>Session Title</th>
+                                        <th>Status</th>
+                                        <th>Verification</th>
+                                        <th>Timestamp</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="portal-history-tbody">
+                                    <!-- Rows inserted dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 4: STUDENT REGISTRATION -->
+                <section id="tab-registration" class="tab-pane">
+                    <div class="registration-layout">
+                        <div class="card registration-form-card">
+                            <h2>Student Enrollment</h2>
+                            <p class="text-muted">Register student information and facial biometrics for automatic attendance</p>
+
+                            <form id="student-reg-form" class="mt-4">
+                                <div class="form-group">
+                                    <label for="reg-roll">Roll Number *</label>
+                                    <input type="text" id="reg-roll" class="form-control" placeholder="e.g. 2024CS004" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="reg-name">Full Name *</label>
+                                    <input type="text" id="reg-name" class="form-control" placeholder="e.g. John Doe" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="reg-branch">Branch / Department *</label>
+                                    <input type="text" id="reg-branch" class="form-control" placeholder="e.g. Computer Science & Engineering" value="Computer Science" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Facial Photo Source *</label>
+                                    <div class="photo-source-tabs">
+                                        <button type="button" class="btn btn-outline btn-sm active" id="btn-src-upload">Upload Photo</button>
+                                        <button type="button" class="btn btn-outline btn-sm" id="btn-src-camera">Snap Webcam</button>
+                                    </div>
+
+                                    <!-- Upload input -->
+                                    <div id="src-upload-box" class="photo-box">
+                                        <input type="file" id="reg-photo-file" accept="image/*" multiple class="form-control">
+                                        <span class="file-hint">Select one or multiple photos (different angles, with/without glasses) for maximum AI accuracy</span>
+                                    </div>
+
+                                    <!-- Webcam capture input -->
+                                    <div id="src-camera-box" class="photo-box" style="display:none;">
+                                        <div class="camera-stream-box">
+                                            <video id="reg-cam-video" autoplay playsinline muted></video>
+                                            <canvas id="reg-cam-canvas" style="display:none;"></canvas>
+                                        </div>
+                                        <div class="mt-2" style="display: flex; gap: 10px; align-items: center;">
+                                            <button type="button" class="btn btn-secondary btn-sm" id="btn-reg-snap">📸 Snap Photo</button>
+                                            <span class="text-muted" style="font-size: 11px;">You can snap multiple angles!</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Captured / Selected Photos Gallery -->
+                                    <div id="reg-preview-box" class="mt-3" style="display:none;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <label id="reg-preview-label">Selected Photos (0):</label>
+                                            <button type="button" class="btn btn-outline btn-sm" id="btn-clear-reg-photos" style="padding: 2px 8px; font-size: 10px;">Clear All</button>
+                                        </div>
+                                        <div class="reg-photos-gallery" id="reg-photos-gallery"></div>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary btn-block mt-4" id="btn-submit-registration">
+                                    Complete Facial Enrollment
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Registered Students List -->
+                        <div class="card roster-list-card">
+                            <div class="card-header-line">
+                                <h3>Enrolled Directory</h3>
+                                <span class="badge badge-white" id="total-registered-badge">0 Students</span>
+                            </div>
+                            <div class="registered-students-scroll" id="registered-students-list">
+                                <!-- Enrolled student items -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 5: COURSES & ROSTER -->
+                <section id="tab-courses" class="tab-pane">
+                    <div class="section-header-row">
+                        <div>
+                            <h2>Courses & Subjects</h2>
+                            <p class="text-muted">Configure academic courses and student allocations</p>
+                        </div>
+                        <button class="btn btn-primary" id="btn-open-create-course-modal">+ Add New Course</button>
+                    </div>
+
+                    <div class="courses-cards-grid" id="courses-grid-view">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: CREATE SESSION -->
+    <div class="modal-backdrop" id="modal-create-session" style="display:none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Schedule New Class Session</h3>
+                <button class="modal-close" data-close="modal-create-session">✕</button>
+            </div>
+            <form id="form-create-session">
+                <div class="form-group">
+                    <label for="new-session-course">Course *</label>
+                    <select id="new-session-course" class="form-control" required>
+                        <option value="">-- Choose Course --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="new-session-title">Session Title / Topic *</label>
+                    <input type="text" id="new-session-title" class="form-control" placeholder="e.g. Lecture 08: Deep Neural Networks" required>
+                </div>
+                <div class="form-row" style="display: flex; gap: 12px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="new-session-date">Session Date *</label>
+                        <input type="date" id="new-session-date" class="form-control" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="new-session-time">Session Time *</label>
+                        <input type="time" id="new-session-time" class="form-control" required>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 14px; margin-top: -6px;">
+                    <button type="button" class="btn btn-outline btn-xs" id="btn-autodetect-datetime">
+                        ⚡ Auto-Detect Current Date & Time
+                    </button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close="modal-create-session">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Session</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CREATE COURSE -->
+    <div class="modal-backdrop" id="modal-create-course" style="display:none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Add New Academic Course</h3>
+                <button class="modal-close" data-close="modal-create-course">✕</button>
+            </div>
+            <form id="form-create-course">
+                <div class="form-group">
+                    <label for="new-course-code">Course Code *</label>
+                    <input type="text" id="new-course-code" class="form-control" placeholder="e.g. CS305" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-course-name">Course Name *</label>
+                    <input type="text" id="new-course-name" class="form-control" placeholder="e.g. Natural Language Processing" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-course-branch">Department / Branch *</label>
+                    <input type="text" id="new-course-branch" class="form-control" value="Computer Science" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close="modal-create-course">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Course</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: MANAGE COURSE ROSTER & ENROLL STUDENTS -->
+    <div class="modal-backdrop" id="modal-manage-roster" style="display:none;">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <div>
+                    <h3 id="roster-modal-title">Manage Course Roster</h3>
+                    <p class="text-muted" id="roster-modal-subtitle">Enroll students and review cumulative subject attendance</p>
+                </div>
+                <button class="modal-close" data-close="modal-manage-roster">✕</button>
+            </div>
+
+            <!-- Quick Course Download Bar -->
+            <div class="course-download-bar">
+                <span>Course Attendance Reports:</span>
+                <div class="export-actions" style="display: flex; gap: 8px; align-items: center;">
+                    <a id="btn-modal-course-excel" href="#" class="btn btn-outline btn-sm">📥 Excel (.xlsx) with %</a>
+                    <a id="btn-modal-course-csv" href="#" class="btn btn-outline btn-sm">📄 CSV with %</a>
+                    <button type="button" class="btn btn-danger-outline btn-sm" id="btn-modal-delete-course" onclick="deleteCourseFromModal()">🗑️ Delete Course</button>
+                </div>
+            </div>
+
+            <!-- Enroll New Student into this Course -->
+            <div class="enroll-action-box card mt-3">
+                <label>Enroll Registered Student to this Course:</label>
+                <div class="input-with-button mt-2">
+                    <select id="select-unenrolled-student" class="form-control">
+                        <option value="">-- Choose Student to Enroll --</option>
+                    </select>
+                    <button class="btn btn-primary" id="btn-do-enroll-student">+ Enroll in Course</button>
+                </div>
+            </div>
+
+            <!-- Enrolled Students Table with Percentage -->
+            <div class="mt-4">
+                <h4 style="margin-bottom: 8px;">Enrolled Students & Course Turnout</h4>
+                <div class="table-container" style="max-height: 280px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Roll No</th>
+                                <th>Student</th>
+                                <th>Attended / Total</th>
+                                <th>Percentage</th>
+                                <th>Eligibility</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="course-roster-tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-close="modal-manage-roster">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD MORE PHOTOS TO EXISTING STUDENT -->
+    <div class="modal-backdrop" id="modal-add-photos" style="display:none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <h3 id="add-photos-modal-title">Add Extra Photos</h3>
+                    <p class="text-muted" id="add-photos-modal-subtitle">Upload multiple angles to improve AI recognition accuracy</p>
+                </div>
+                <button class="modal-close" data-close="modal-add-photos">✕</button>
+            </div>
+            <form id="form-add-photos">
+                <input type="hidden" id="add-photos-student-id">
+                <div class="form-group">
+                    <label>Select Additional Photos (Single or Multiple) *</label>
+                    <input type="file" id="add-extra-files" accept="image/*" multiple class="form-control" required>
+                    <span class="file-hint">Select multiple portrait images from disk</span>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close="modal-add-photos">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-extra-photos">Upload & Add Embeddings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Backdrop for mobile drawer -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+    <!-- Mobile Persistent Bottom Navigation Bar -->
+    <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+        <button class="bottom-nav-item active" data-tab="take-attendance">
+            <span class="bottom-nav-icon">📸</span>
+            <span class="bottom-nav-label">Attendance</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="sessions">
+            <span class="bottom-nav-icon">📅</span>
+            <span class="bottom-nav-label">Sessions</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="student-portal">
+            <span class="bottom-nav-icon">🎓</span>
+            <span class="bottom-nav-label">Portal</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="registration">
+            <span class="bottom-nav-icon">👥</span>
+            <span class="bottom-nav-label">Students</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="courses">
+            <span class="bottom-nav-icon">📚</span>
+            <span class="bottom-nav-label">Courses</span>
+        </button>
+    </nav>
+
+    <!-- Toast Notification Banner -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="/static/app.js?v=2.3.1"></script>
+</body>
+</html>
