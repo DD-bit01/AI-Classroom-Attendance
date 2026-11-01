@@ -2148,7 +2148,7 @@ el.btnDoEnrollStudent.addEventListener('click', async () => {
         showToast('Please select a student to enroll', 'error');
         return;
     }
-
+     
     try {
         const res = await fetch(`/api/courses/${state.currentManageCourseId}/enroll`, {
             method: 'POST',

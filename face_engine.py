@@ -202,10 +202,44 @@ class FaceEngine:
             return detections, self.encode_image_base64(annotated_image) if draw_annotations else ""
 
         # Filter candidate faces and apply Multi-Scale IoM Overlap Suppression
-        # (Prevents dual/multiple bounding boxes on big/close-up selfie faces)
-        valid_faces = [f for f in faces if float(f[-1]) >= 0.42]
+        # Also filters non-face artifacts (hands, wrists, clothing patterns) via facial biometric geometry
+        valid_faces = []
+        for f in faces:
+            conf = float(f[-1])
+            if conf < 0.45:
+                continue
+            fx, fy, fw, fh = map(int, f[:4])
+            # 1. Aspect ratio validation (human faces are roughly 0.75 to 1.85)
+            ar = fh / max(1, fw)
+            if ar < 0.75 or ar > 1.85:
+                continue
+            # 2. Minimum face box dimensions
+            if fw < 10 or fh < 12:
+                continue
+            # 3. Facial Landmark Geometry Verification:
+            # YuNet predicts 5 landmarks: right_eye, left_eye, nose, right_mouth, left_mouth.
+            # Hands/fingers/elbows mistaken as faces have unnatural, collapsed eye/mouth distances.
+            lms = f[4:14].reshape(5, 2)
+            re, le, nose, rm, lm = lms
+            eye_dist = np.hypot(re[0] - le[0], re[1] - le[1])
+            eye_ratio = eye_dist / max(1.0, fw)
+            if eye_ratio < 0.28:
+                continue
+            mouth_dist = np.hypot(rm[0] - lm[0], rm[1] - lm[1])
+            mouth_ratio = mouth_dist / max(1.0, fw)
+            if mouth_ratio < 0.16:
+                continue
+            eye_y = (re[1] + le[1]) / 2.0
+            mouth_y = (rm[1] + lm[1]) / 2.0
+            if (mouth_y - eye_y) < 0.12 * fh:
+                continue
+            valid_faces.append(f)
+
         if not valid_faces and len(faces) > 0:
-            valid_faces = [faces[0]]
+            # Fallback only if highest-confidence face meets reasonable criteria
+            best_f = faces[0]
+            if float(best_f[-1]) >= 0.55:
+                valid_faces = [best_f]
 
         if len(valid_faces) > 1:
             valid_faces.sort(key=lambda f: float(f[-1]), reverse=True)
