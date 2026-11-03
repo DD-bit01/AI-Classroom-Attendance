@@ -21,24 +21,30 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import make_msgid, formatdate
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv(override=True)
-except ImportError:
-    pass
+def load_local_env():
+    """Reads .env file directly into os.environ."""
+    env_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if os.path.exists(env_file):
+        try:
+            with open(env_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        os.environ[k.strip()] = v.strip().strip("\"'")
+        except Exception:
+            pass
+
+load_local_env()
 
 DEFAULT_SENDER = "124ad0029@iiitk.ac.in"
 
 def get_smtp_config():
     """Dynamically reads SMTP settings from environment or .env."""
-    try:
-        from dotenv import load_dotenv
-        load_dotenv(override=True)
-    except Exception:
-        pass
+    load_local_env()
 
     user = os.getenv("AURA_SMTP_USER", "").strip() or DEFAULT_SENDER
-    password = os.getenv("AURA_SMTP_PASS", "").strip()
+    password = os.getenv("AURA_SMTP_PASS", "").strip().replace(" ", "")
     host = os.getenv("AURA_SMTP_HOST", "").strip() or "smtp.gmail.com"
     port = int(os.getenv("AURA_SMTP_PORT", "587"))
     from_email = os.getenv("AURA_SMTP_FROM", "").strip() or user

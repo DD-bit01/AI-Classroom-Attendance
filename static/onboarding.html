@@ -953,9 +953,9 @@
                     <span>🔄</span> <span>Flip</span>
                 </button>
                 <button type="button" class="cam-snap-trigger" id="btn-cam-snap" title="Capture Photo">📸</button>
-                <label class="cam-action-btn" style="cursor:pointer; margin:0;">
-                    <span>📁</span> <span>Upload</span>
-                    <input type="file" id="cam-file-input" accept="image/*" style="display:none;">
+                <label class="cam-action-btn" style="cursor:pointer; margin:0;" id="lbl-cam-upload">
+                    <span>📁</span> <span>Upload / Camera</span>
+                    <input type="file" id="cam-file-input" accept="image/*" capture="user" style="display:none;">
                 </label>
             </div>
         </div>
@@ -1132,7 +1132,9 @@
 
         async function startCamera() {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                showToast('Live camera streaming not supported on this browser. Tap "Upload" to select photos.', true);
+                showToast(slotPrompts[state.activeSlot] || 'Opening camera...', false);
+                closeCamera();
+                camFileInput.click();
                 return;
             }
             try {
@@ -1149,7 +1151,10 @@
                 camVideo.srcObject = state.stream;
                 camVideo.style.transform = (state.facingMode === 'user') ? 'scaleX(-1)' : 'none';
             } catch (e) {
-                showToast('Camera access blocked. Please use the "Upload" button.', true);
+                console.warn('getUserMedia error, falling back to native capture:', e);
+                showToast('Opening native camera / photo picker...', false);
+                closeCamera();
+                camFileInput.click();
             }
         }
 
@@ -1165,6 +1170,11 @@
         window.openCameraForSlot = function(slotIdx) {
             state.activeSlot = slotIdx;
             camHeader.textContent = slotPrompts[slotIdx];
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showToast(slotPrompts[slotIdx]);
+                camFileInput.click();
+                return;
+            }
             camModal.style.display = 'flex';
             startCamera();
         };
