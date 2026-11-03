@@ -28,11 +28,11 @@ def get_smtp_config():
     except Exception:
         pass
 
-    user = os.getenv("AURA_SMTP_USER", "").strip()
+    user = os.getenv("AURA_SMTP_USER", "").strip() or "ahmad.dilnawaz.md@gmail.com"
     password = os.getenv("AURA_SMTP_PASS", "").strip()
-    host = os.getenv("AURA_SMTP_HOST", "").strip()
+    host = os.getenv("AURA_SMTP_HOST", "").strip() or "smtp.gmail.com"
     port = int(os.getenv("AURA_SMTP_PORT", "587"))
-    from_email = os.getenv("AURA_SMTP_FROM", user).strip()
+    from_email = os.getenv("AURA_SMTP_FROM", "").strip() or user
 
     # Smart auto-detection for common providers if host wasn't explicitly set
     if not host and user:

@@ -808,10 +808,10 @@
                         <span class="form-hint">Authorized college domain required to bind facial biometrics.</span>
                     </div>
 
-                    <!-- Dev Mode Auto-Fill -->
-                    <div id="dev-otp-card" class="dev-otp-card" style="display:none;">
-                        <span>⚡ Test Code: <span id="dev-otp-val" class="dev-otp-code">123456</span></span>
-                        <button type="button" class="btn-dev-autofill" id="btn-autofill-otp">Auto-Fill</button>
+                    <!-- Inbox Dispatch Notice -->
+                    <div id="inbox-notice" class="info-tip-box" style="display:none; margin-bottom:16px; border-color:#383840;">
+                        <span class="icon">✉</span>
+                        <span>Verification code dispatched to <strong id="sent-email-display" style="color:#ffffff;"></strong>. Please check your email inbox and spam folder.</span>
                     </div>
 
                     <!-- OTP Input Box (Revealed after code dispatch) -->
@@ -1051,9 +1051,8 @@
         const btnVerifyOtp = document.getElementById('btn-verify-otp');
         const inputEmail = document.getElementById('input-email');
         const boxOtp = document.getElementById('box-otp-entry');
-        const devCard = document.getElementById('dev-otp-card');
-        const devVal = document.getElementById('dev-otp-val');
-        const btnAutofill = document.getElementById('btn-autofill-otp');
+        const inboxNotice = document.getElementById('inbox-notice');
+        const sentEmailDisplay = document.getElementById('sent-email-display');
         const linkResend = document.getElementById('link-resend-otp');
         const otpInputs = document.querySelectorAll('.otp-input');
 
@@ -1095,11 +1094,9 @@
                 btnVerifyOtp.style.display = 'inline-flex';
                 inputEmail.readOnly = true;
 
-                if (data.dev_otp) {
-                    devCard.style.display = 'flex';
-                    devVal.textContent = data.dev_otp;
-                } else {
-                    devCard.style.display = 'none';
+                if (inboxNotice && sentEmailDisplay) {
+                    sentEmailDisplay.textContent = email;
+                    inboxNotice.style.display = 'flex';
                 }
 
                 showToast(data.message || 'Verification code sent to your email');
@@ -1114,16 +1111,6 @@
 
         btnSendOtp.addEventListener('click', handleSendOtp);
         linkResend.addEventListener('click', (e) => { e.preventDefault(); handleSendOtp(); });
-
-        btnAutofill.addEventListener('click', () => {
-            const code = devVal.textContent.trim();
-            if (code && code.length === 6) {
-                for (let i = 0; i < 6; i++) {
-                    otpInputs[i].value = code[i];
-                }
-                showToast('Test OTP auto-filled!');
-            }
-        });
 
         btnVerifyOtp.addEventListener('click', async () => {
             let otp = '';
