@@ -388,6 +388,38 @@
             background: #000000;
         }
 
+        .photo-card-slot.validating {
+            border-style: solid;
+            border-color: #3b82f6;
+            background: #091e3a;
+            animation: pulse-border 1.2s infinite alternate;
+        }
+
+        .photo-card-slot.validating .slot-tag {
+            background: #3b82f6;
+            color: #ffffff;
+            border-color: #3b82f6;
+            font-weight: 700;
+        }
+
+        .photo-card-slot.error {
+            border-style: solid;
+            border-color: #ef4444;
+            background: #2b0b0b;
+        }
+
+        .photo-card-slot.error .slot-tag {
+            background: #ef4444;
+            color: #ffffff;
+            border-color: #ef4444;
+            font-weight: 700;
+        }
+
+        @keyframes pulse-border {
+            0% { border-color: #3b82f6; box-shadow: 0 0 5px rgba(59, 130, 246, 0.3); }
+            100% { border-color: #93c5fd; box-shadow: 0 0 15px rgba(59, 130, 246, 0.7); }
+        }
+
         .photo-card-slot img {
             width: 100%;
             height: 100%;
@@ -1195,47 +1227,93 @@
             ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
 
             const b64 = canvas.toDataURL('image/jpeg', 0.90);
-            setSlotPhoto(state.activeSlot, b64);
+            const targetSlot = state.activeSlot;
             closeCamera();
-
-            const nextSlot = state.photos.findIndex(p => p === null);
-            if (nextSlot !== -1) {
-                setTimeout(() => openCameraForSlot(nextSlot), 400);
-            }
+            handlePhotoCapture(targetSlot, b64);
         });
 
         camFileInput.addEventListener('change', (e) => {
             if (e.target.files && e.target.files.length > 0) {
                 const file = e.target.files[0];
+                const targetSlot = state.activeSlot;
                 const reader = new FileReader();
                 reader.onload = (ev) => {
-                    setSlotPhoto(state.activeSlot, ev.target.result);
                     closeCamera();
                     e.target.value = '';
-                    const nextSlot = state.photos.findIndex(p => p === null);
-                    if (nextSlot !== -1) {
-                        setTimeout(() => openCameraForSlot(nextSlot), 400);
-                    }
+                    handlePhotoCapture(targetSlot, ev.target.result);
                 };
                 reader.readAsDataURL(file);
             }
         });
 
-        function setSlotPhoto(slotIdx, dataUrl) {
-            state.photos[slotIdx] = dataUrl;
+        async function handlePhotoCapture(slotIdx, dataUrl) {
             const slotEl = document.getElementById(`slot-${slotIdx}`);
             const tagEl = document.getElementById(`tag-${slotIdx}`);
 
-            slotEl.classList.add('captured');
-            tagEl.textContent = '✓ Saved';
+            // 1. UI: Visual feedback while AI checks the face
+            slotEl.classList.remove('error');
+            slotEl.classList.remove('captured');
+            slotEl.classList.add('validating');
+            tagEl.textContent = '⏳ Checking face...';
 
-            const oldImg = slotEl.querySelector('img');
+            let oldImg = slotEl.querySelector('img');
             if (oldImg) oldImg.remove();
 
-            const img = document.createElement('img');
-            img.src = dataUrl;
-            slotEl.appendChild(img);
+            const previewImg = document.createElement('img');
+            previewImg.src = dataUrl;
+            slotEl.appendChild(previewImg);
 
+            showToast(`Analyzing photo ${slotIdx + 1} with AI face detector...`, false);
+
+            try {
+                const res = await fetch('/api/onboarding/validate-face', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ photo_b64: dataUrl })
+                });
+                const data = await res.json();
+
+                slotEl.classList.remove('validating');
+
+                if (!res.ok || !data.valid) {
+                    slotEl.classList.remove('captured');
+                    slotEl.classList.add('error');
+                    tagEl.textContent = '❌ Face Check Failed';
+                    previewImg.remove();
+                    state.photos[slotIdx] = null;
+                    updateSubmitState();
+
+                    const errMsg = data.error || 'No human face detected. Please take a clear picture of your face.';
+                    showToast(errMsg, true);
+                    return;
+                }
+
+                // 2. Face is valid and verified!
+                state.photos[slotIdx] = dataUrl;
+                slotEl.classList.remove('error');
+                slotEl.classList.add('captured');
+                const confPercent = Math.round((data.confidence || 0.90) * 100);
+                tagEl.textContent = `✓ Verified (${confPercent}%)`;
+                showToast(`Photo ${slotIdx + 1} face verified successfully!`);
+                updateSubmitState();
+
+                // 3. Automatically advance to next empty slot
+                const nextSlot = state.photos.findIndex(p => p === null);
+                if (nextSlot !== -1) {
+                    setTimeout(() => openCameraForSlot(nextSlot), 450);
+                }
+            } catch (err) {
+                slotEl.classList.remove('validating');
+                slotEl.classList.add('error');
+                tagEl.textContent = '❌ Verification Error';
+                previewImg.remove();
+                state.photos[slotIdx] = null;
+                updateSubmitState();
+                showToast('Failed to check face: ' + err.message, true);
+            }
+        }
+
+        function updateSubmitState() {
             const count = state.photos.filter(p => p !== null).length;
             if (count === 4) {
                 btnSubmit.disabled = false;

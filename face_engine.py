@@ -151,6 +151,68 @@ class FaceEngine:
 
         return embedding.astype(np.float32), None
 
+    def validate_portrait_face(self, image_bgr: np.ndarray) -> dict:
+        """
+        Validates whether an image contains a clear, valid, single human face.
+        Rejects non-face photos (desks, computers, laptops, walls, pets, clutter),
+        group photos (>1 face), tiny/distant faces, and blurry low-confidence faces.
+        Returns:
+            dict with {
+                "valid": bool,
+                "error": Optional[str],
+                "confidence": Optional[float],
+                "face_count": int,
+                "box": Optional[list]
+            }
+        """
+        if image_bgr is None or image_bgr.size == 0:
+            return {"valid": False, "error": "Invalid or empty image file.", "face_count": 0}
+
+        h, w = image_bgr.shape[:2]
+        if h < 80 or w < 80:
+            return {"valid": False, "error": "Image resolution is too low. Please provide a clear camera photo.", "face_count": 0}
+
+        # Try extracting single face embedding using the robust detector & orientation pipeline
+        emb, err = self.extract_single_face_embedding(image_bgr)
+        if err is not None or emb is None:
+            # Map error message to student-friendly language
+            if "No face detected" in err:
+                user_msg = "No face detected in this photo. Please capture a clear photo of your face (not a desk, computer, or object)."
+            elif "people in photo" in err or "solo portrait" in err:
+                user_msg = err
+            elif "confidence too low" in err:
+                user_msg = "Face is too blurry or dark. Please ensure good lighting and look toward the camera."
+            else:
+                user_msg = err
+            return {"valid": False, "error": user_msg, "face_count": 0}
+
+        # Extract detection stats for feedback
+        work_img = image_bgr.copy()
+        max_dim = 1600
+        if max(h, w) > max_dim:
+            scale = max_dim / max(h, w)
+            work_img = cv2.resize(work_img, (int(w * scale), int(h * scale)))
+            h, w = work_img.shape[:2]
+
+        self.detector.setInputSize((w, h))
+        _, faces = self.detector.detect(work_img)
+        conf = 0.90
+        box = None
+        face_count = 1
+        if faces is not None and len(faces) > 0:
+            best_face = max(faces, key=lambda f: float(f[-1]))
+            conf = float(best_face[-1])
+            box = [int(v) for v in best_face[:4]]
+            face_count = len([f for f in faces if float(f[-1]) >= 0.50])
+
+        return {
+            "valid": True,
+            "error": None,
+            "confidence": round(conf, 3),
+            "face_count": max(1, face_count),
+            "box": box
+        }
+
     def recognize_faces_in_image(
         self,
         image_bgr: np.ndarray,

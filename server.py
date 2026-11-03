@@ -173,6 +173,28 @@ async def verify_otp_endpoint(payload: VerifyOtpRequest):
         "expires_in": 1500
     }
 
+class ValidateFaceRequest(BaseModel):
+    photo_b64: str
+
+@app.post("/api/onboarding/validate-face")
+async def validate_face_endpoint(payload: ValidateFaceRequest):
+    s = payload.photo_b64.strip()
+    if not s:
+        raise HTTPException(status_code=400, detail="Empty photo data provided.")
+    if "," in s:
+        s = s.split(",", 1)[1]
+    try:
+        raw_bytes = base64.b64decode(s)
+        engine = get_face_engine()
+        img = engine.decode_image_bytes(raw_bytes)
+        if img is None or img.size == 0:
+            return {"valid": False, "error": "Unable to decode image file. Please capture again."}
+
+        result = engine.validate_portrait_face(img)
+        return result
+    except Exception as e:
+        return {"valid": False, "error": f"Face check error: {str(e)}"}
+
 @app.post("/api/onboarding/submit")
 async def submit_student_onboarding(
     request: Request,
@@ -240,13 +262,31 @@ async def submit_student_onboarding(
     if len(raw_images) < 4:
         raise HTTPException(status_code=400, detail=f"Please provide all 4 requested photos (Forward, Left Tilt, Right Tilt, Slight Smile). Received only {len(raw_images)}.")
 
-    # 4. Save photos to student directory on disk
+    # 4. Strict Face Verification: Every photo must contain a valid, clear human face!
+    # Rejects desks, computers, laptops, walls, pets, or group photos!
+    verified_embeddings = []
+    for idx, (img_bgr, orig_name) in enumerate(raw_images, start=1):
+        check_res = engine.validate_portrait_face(img_bgr)
+        if not check_res["valid"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Photo {idx} failed face verification: {check_res['error']}. All 4 photos must be clear pictures of your face."
+            )
+        emb, err = engine.extract_single_face_embedding(img_bgr)
+        if err or emb is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Photo {idx} facial vector extraction failed: {err}"
+            )
+        verified_embeddings.append(emb)
+
+    # 5. Save verified photos to student directory on disk
     clean_name = "".join(c for c in name if c.isalnum() or c in (" ", "_", "-")).strip() or roll_no
     student_dir = PHOTOS_DIR / clean_name
     student_dir.mkdir(parents=True, exist_ok=True)
 
     saved_photo_paths = []
-    valid_embeddings = []
+    final_embeddings_with_paths = []
     first_photo_rel = None
 
     for idx, (img_bgr, orig_name) in enumerate(raw_images, start=1):
@@ -259,32 +299,24 @@ async def submit_student_onboarding(
         if first_photo_rel is None:
             first_photo_rel = rel_path
 
-        # If auto_generate_embeddings is requested, calculate embedding now;
-        # otherwise, batch script `generate_embeddings.py` can be run anytime later!
-        if auto_generate_embeddings:
-            try:
-                emb, err = engine.extract_single_face_embedding(img_bgr)
-                if not err and emb is not None:
-                    valid_embeddings.append((emb, rel_path))
-            except Exception as ex:
-                print(f"[Onboarding] Extraction note for photo {idx}:", ex)
+        final_embeddings_with_paths.append((verified_embeddings[idx - 1], rel_path))
 
-    # 5. Insert student into database
+    # 6. Insert student into database with validated 512-D ArcFace vectors
     student_id = db.add_student(
         roll_no=roll_no,
         name=name,
         branch=branch,
         photo_path=first_photo_rel,
-        embeddings=valid_embeddings if auto_generate_embeddings else None,
+        embeddings=final_embeddings_with_paths,
         email=email
     )
 
-    # 6. Auto-enroll in all courses
+    # 7. Auto-enroll in all courses
     courses = db.get_all_courses()
     for c in courses:
         db.enroll_student_in_course(c["id"], student_id)
 
-    # 7. Single-use token invalidation (anti-replay)
+    # 8. Single-use token invalidation (anti-replay)
     if token_payload and "jti" in token_payload:
         auth_service.consume_onboarding_token(token_payload["jti"])
 
