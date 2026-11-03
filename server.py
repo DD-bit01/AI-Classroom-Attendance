@@ -133,7 +133,10 @@ async def send_otp_endpoint(payload: SendOtpRequest):
 
     db.save_email_otp(email, otp_hash, expires_at)
     res = email_service.send_verification_email(email, otp, student_name=payload.name)
-    return res
+    return {
+        "success": res.get("success", True),
+        "message": f"Verification code dispatched to {email}. Please check your inbox and spam folder."
+    }
 
 class VerifyOtpRequest(BaseModel):
     email: str

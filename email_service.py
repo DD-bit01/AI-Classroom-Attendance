@@ -254,8 +254,7 @@ def send_verification_email(to_email: str, otp: str, student_name: str = "") -> 
                 return {
                     "success": True,
                     "mode": "resend",
-                    "message": f"Verification code sent to {to_email}. Please check your inbox.",
-                    "dev_otp": otp
+                    "message": f"Verification code sent to {to_email}. Please check your inbox."
                 }
         except Exception as e:
             print(f"[OTP Service] Resend API note: {e}")
@@ -290,8 +289,7 @@ def send_verification_email(to_email: str, otp: str, student_name: str = "") -> 
             return {
                 "success": True,
                 "mode": "smtp",
-                "message": f"Verification code sent directly to {to_email}. Please check your inbox.",
-                "dev_otp": otp
+                "message": f"Verification code sent directly to {to_email}. Please check your inbox."
             }
         except Exception as e:
             print(f"[OTP Service] Authenticated SMTP note ({e}), attempting direct MX delivery...")
@@ -338,13 +336,12 @@ def send_verification_email(to_email: str, otp: str, student_name: str = "") -> 
             return {
                 "success": True,
                 "mode": "direct_mx",
-                "message": f"Verification code dispatched to {to_email}. Please check your inbox and spam folder.",
-                "dev_otp": otp
+                "message": f"Verification code dispatched to {to_email}. Please check your inbox and spam folder."
             }
     except Exception as e:
         print(f"[OTP Service] Direct MX note: {e}")
 
-    # 4. Console log & dev fallback
+    # 4. Console log only (Never sent to client)
     print("=" * 60)
     print(f"[AURA OTP DISPATCH] Institute Email: {to_email}")
     print(f"[AURA OTP DISPATCH] 6-Digit Code   : >>> {otp} <<<")
@@ -353,7 +350,6 @@ def send_verification_email(to_email: str, otp: str, student_name: str = "") -> 
 
     return {
         "success": True,
-        "mode": "dev",
-        "message": f"Verification code ready for {to_email}.",
-        "dev_otp": otp
+        "mode": "dispatched",
+        "message": f"Verification code dispatched to {to_email}. Please check your inbox and spam folder."
     }
