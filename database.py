@@ -45,6 +45,19 @@ def init_db():
     );
     """)
 
+    # Cryptographically signed onboarding session tokens (single-use anti-replay)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS onboarding_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token_id TEXT UNIQUE NOT NULL,
+        email TEXT NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used INTEGER DEFAULT 0,
+        used_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
     # Student Embeddings table (can store multiple embeddings per student)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS student_embeddings (
@@ -776,6 +789,48 @@ def get_pending_raw_photo_students():
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
     return rows
+
+def store_onboarding_token(token_id: str, email: str, expires_at: datetime):
+    """Saves a cryptographically signed onboarding token nonce."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO onboarding_tokens (token_id, email, expires_at, used)
+        VALUES (?, ?, ?, 0)
+    """, (token_id, email.strip().lower(), expires_at.strftime("%Y-%m-%d %H:%M:%S")))
+    conn.commit()
+    conn.close()
+
+def is_onboarding_token_valid(token_id: str) -> bool:
+    """Verifies that the token has not been used or expired."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT token_id, expires_at, used FROM onboarding_tokens
+        WHERE token_id = ?
+    """, (token_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return False
+    if row["used"] == 1:
+        return False
+    exp = datetime.strptime(row["expires_at"], "%Y-%m-%d %H:%M:%S")
+    return datetime.now() <= exp
+
+def consume_onboarding_token(token_id: str) -> bool:
+    """Single-use revocation of onboarding token."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE onboarding_tokens
+        SET used = 1, used_at = CURRENT_TIMESTAMP
+        WHERE token_id = ? AND used = 0
+    """, (token_id,))
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
 
 if __name__ == "__main__":
     init_db()

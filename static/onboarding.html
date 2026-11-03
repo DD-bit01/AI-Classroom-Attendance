@@ -1009,6 +1009,7 @@
             roll: '',
             name: '',
             branch: '',
+            authToken: '',
             photos: [null, null, null, null],
             activeSlot: 0,
             stream: null,
@@ -1146,7 +1147,8 @@
                 if (!res.ok) throw new Error(data.detail || 'OTP verification failed');
 
                 state.emailVerified = true;
-                showToast('Institute email verified!');
+                state.authToken = data.token || '';
+                showToast('Institute email verified & authenticated!');
                 setStep(2);
             } catch (err) {
                 showToast(err.message, true);
@@ -1300,16 +1302,27 @@
             formData.append('roll_no', state.roll);
             formData.append('name', state.name);
             formData.append('branch', state.branch);
+            formData.append('onboarding_token', state.authToken);
             formData.append('photos_b64', JSON.stringify(state.photos));
             formData.append('auto_generate_embeddings', 'true');
 
             try {
                 const res = await fetch('/api/onboarding/submit', {
                     method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + state.authToken
+                    },
                     body: formData
                 });
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Enrollment submission failed');
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        showToast(data.detail || 'Authentication token expired. Please verify your email again.', true);
+                        setTimeout(() => setStep(1), 1500);
+                        return;
+                    }
+                    throw new Error(data.detail || 'Enrollment submission failed');
+                }
 
                 document.getElementById('res-name').textContent = data.name;
                 document.getElementById('res-roll').textContent = data.roll_no;

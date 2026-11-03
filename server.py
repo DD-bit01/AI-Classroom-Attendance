@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional, List
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, Response
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, Response, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +20,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import database as db
 from face_engine import get_face_engine
 import email_service
+import auth_service
 
 ROOT = Path(__file__).resolve().parent
 STATIC_DIR = ROOT / "static"
@@ -116,6 +117,11 @@ async def send_otp_endpoint(payload: SendOtpRequest):
         allowed = ", ".join(email_service.ALLOWED_DOMAINS)
         raise HTTPException(status_code=400, detail=f"Registration is restricted to official institute email domains ({allowed}).")
 
+    # Rate limiting & spam protection
+    allowed, rate_msg = auth_service.check_otp_rate_limit(email)
+    if not allowed:
+        raise HTTPException(status_code=429, detail=rate_msg)
+
     # Check if student with this email is already registered
     existing = db.get_student_by_email(email)
     if existing:
@@ -146,16 +152,32 @@ async def verify_otp_endpoint(payload: VerifyOtpRequest):
 
     ok = db.verify_email_otp(email, check_fn)
     if not ok:
-        raise HTTPException(status_code=400, detail="Invalid or expired OTP code. Please request a new code.")
+        attempts_left = auth_service.record_failed_otp_attempt(email)
+        if attempts_left == 0:
+            raise HTTPException(status_code=429, detail="Too many failed OTP attempts. This account is locked for 15 minutes for security.")
+        raise HTTPException(status_code=400, detail=f"Invalid or expired OTP code. {attempts_left} attempt(s) remaining before security lockout.")
 
-    return {"success": True, "message": "Institute email verified successfully! Proceed to upload your 4 photos."}
+    auth_service.reset_failed_otp_attempts(email)
+
+    # Issue cryptographically signed HMAC-SHA256 onboarding token (25-minute lifespan)
+    token = auth_service.generate_onboarding_token(email, expiry_minutes=25)
+
+    return {
+        "success": True,
+        "message": "Institute email verified successfully! Proceed to upload your 4 photos.",
+        "token": token,
+        "email": email,
+        "expires_in": 1500
+    }
 
 @app.post("/api/onboarding/submit")
 async def submit_student_onboarding(
+    request: Request,
     email: str = Form(...),
     roll_no: str = Form(...),
     name: str = Form(...),
     branch: str = Form(...),
+    onboarding_token: Optional[str] = Form(None),
     photos: Optional[List[UploadFile]] = File(None),
     photos_b64: Optional[str] = Form(None),
     auto_generate_embeddings: bool = Form(True)
@@ -166,9 +188,19 @@ async def submit_student_onboarding(
     name = name.strip()
     branch = branch.strip()
 
-    # 1. Enforce that email OTP was previously verified
-    if not db.is_email_verified(email):
-        raise HTTPException(status_code=403, detail="Institute email verification expired or incomplete. Please verify your email via OTP first.")
+    # 1. Cryptographic Authentication & Token Verification
+    # Accepts token from Authorization header or form parameter
+    auth_header = request.headers.get("Authorization", "")
+    token = onboarding_token
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+
+    is_valid, token_payload, auth_err = auth_service.verify_onboarding_token(token, expected_email=email)
+    if not is_valid:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Authentication failed: {auth_err} Please re-verify your institute email."
+        )
 
     # 2. Check roll no collision
     if db.get_student_by_roll(roll_no):
@@ -248,6 +280,10 @@ async def submit_student_onboarding(
     courses = db.get_all_courses()
     for c in courses:
         db.enroll_student_in_course(c["id"], student_id)
+
+    # 7. Single-use token invalidation (anti-replay)
+    if token_payload and "jti" in token_payload:
+        auth_service.consume_onboarding_token(token_payload["jti"])
 
     return {
         "success": True,
