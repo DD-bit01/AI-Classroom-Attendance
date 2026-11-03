@@ -490,7 +490,12 @@
 
                                 <div class="form-group">
                                     <label for="reg-branch">Branch / Department *</label>
-                                    <input type="text" id="reg-branch" class="form-control" placeholder="e.g. Computer Science & Engineering" value="Computer Science" required>
+                                    <select id="reg-branch" class="form-control" required>
+                                        <option value="CSE">CSE</option>
+                                        <option value="AI&DS" selected>AI&DS</option>
+                                        <option value="Mechanical">Mechanical</option>
+                                        <option value="ECE">ECE</option>
+                                    </select>
                                 </div>
 
                                 <div class="form-group">
@@ -626,7 +631,13 @@
                 </div>
                 <div class="form-group">
                     <label for="new-course-branch">Department / Branch *</label>
-                    <input type="text" id="new-course-branch" class="form-control" value="Computer Science" required>
+                    <select id="new-course-branch" class="form-control" required>
+                        <option value="CSE">CSE</option>
+                        <option value="AI&DS" selected>AI&DS</option>
+                        <option value="Mechanical">Mechanical</option>
+                        <option value="ECE">ECE</option>
+                        <option value="All Branches">All Branches</option>
+                    </select>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-close="modal-create-course">Cancel</button>
