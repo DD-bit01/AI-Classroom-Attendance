@@ -23,7 +23,7 @@ try:
 except ImportError:
     pass
 
-DEFAULT_SENDER = "124ad0029@iiitk.ac.in"
+DEFAULT_SENDER = "ahmad.dilnawaz.md@gmail.com"
 
 def get_smtp_config():
     """Dynamically reads SMTP settings from environment or .env."""
