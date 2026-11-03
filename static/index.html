@@ -50,6 +50,10 @@
                     <span class="nav-icon">▤</span>
                     <span class="nav-label">Courses & Roster</span>
                 </button>
+                <a href="/onboarding" target="_blank" class="nav-item" style="text-decoration:none; color:inherit;">
+                    <span class="nav-icon">🔗</span>
+                    <span class="nav-label">Student Self-Link</span>
+                </a>
             </nav>
 
             <div class="sidebar-downloads">
@@ -446,6 +450,28 @@
 
                 <!-- TAB 4: STUDENT REGISTRATION -->
                 <section id="tab-registration" class="tab-pane">
+                    <!-- SELF-SERVICE ONBOARDING BANNER -->
+                    <div class="card p-3 mb-4" style="background: linear-gradient(135deg, rgba(37,99,235,0.15), rgba(99,102,241,0.1)); border: 1px solid rgba(99,102,241,0.35); border-radius: 12px; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                            <div>
+                                <div style="font-weight: 700; color: #93c5fd; font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                                    <span>📲</span> Student Self-Service Onboarding Portal
+                                </div>
+                                <p style="font-size: 13px; color: #cbd5e1; margin: 4px 0 0 0;">
+                                    Skip manual data entry! Students verify their institute email with OTP and capture their 4 angle photos directly on mobile or laptop.
+                                </p>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button type="button" class="btn btn-secondary" onclick="navigator.clipboard.writeText(window.location.origin + '/onboarding'); alert('Copied link: ' + window.location.origin + '/onboarding');" style="padding: 8px 14px; font-size: 13px; cursor: pointer;">
+                                    📋 Copy Student Link
+                                </button>
+                                <a href="/onboarding" target="_blank" class="btn btn-primary" style="padding: 8px 14px; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center;">
+                                    Open Portal ↗
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="registration-layout">
                         <div class="card registration-form-card">
                             <h2>Student Enrollment</h2>

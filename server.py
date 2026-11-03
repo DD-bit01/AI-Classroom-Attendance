@@ -19,6 +19,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 import database as db
 from face_engine import get_face_engine
+import email_service
 
 ROOT = Path(__file__).resolve().parent
 STATIC_DIR = ROOT / "static"
@@ -89,6 +90,176 @@ async def serve_index():
     if not index_file.exists():
         return HTMLResponse("<h1>AI Attendance System: Frontend loading...</h1>")
     return FileResponse(str(index_file))
+
+@app.get("/onboarding", response_class=HTMLResponse)
+@app.get("/register", response_class=HTMLResponse)
+@app.get("/student-onboarding", response_class=HTMLResponse)
+async def serve_onboarding():
+    onboarding_file = STATIC_DIR / "onboarding.html"
+    if not onboarding_file.exists():
+        return HTMLResponse("<h1>Student Onboarding Portal: Loading...</h1>")
+    return FileResponse(str(onboarding_file))
+
+# ----------------- Student Self-Service Onboarding API ----------------- #
+
+class SendOtpRequest(BaseModel):
+    email: str
+    name: Optional[str] = ""
+
+@app.post("/api/onboarding/send-otp")
+async def send_otp_endpoint(payload: SendOtpRequest):
+    email = payload.email.strip().lower()
+    if "@" not in email or "." not in email:
+        raise HTTPException(status_code=400, detail="Please provide a valid institute email address.")
+
+    if not email_service.is_allowed_domain(email):
+        allowed = ", ".join(email_service.ALLOWED_DOMAINS)
+        raise HTTPException(status_code=400, detail=f"Registration is restricted to official institute email domains ({allowed}).")
+
+    # Check if student with this email is already registered
+    existing = db.get_student_by_email(email)
+    if existing:
+        raise HTTPException(status_code=400, detail=f"A student with email '{email}' is already enrolled ({existing['roll_no']}: {existing['name']}).")
+
+    otp = email_service.generate_otp()
+    otp_hash = email_service.hash_otp(otp, email)
+    expires_at = datetime.now() + email_service.timedelta(minutes=10)
+
+    db.save_email_otp(email, otp_hash, expires_at)
+    res = email_service.send_verification_email(email, otp, student_name=payload.name)
+    return res
+
+class VerifyOtpRequest(BaseModel):
+    email: str
+    otp: str
+
+@app.post("/api/onboarding/verify-otp")
+async def verify_otp_endpoint(payload: VerifyOtpRequest):
+    email = payload.email.strip().lower()
+    otp = payload.otp.strip()
+    if not email or not otp:
+        raise HTTPException(status_code=400, detail="Email and OTP code are required.")
+
+    def check_fn(stored_hash: str):
+        computed_hash = email_service.hash_otp(otp, email)
+        return computed_hash == stored_hash
+
+    ok = db.verify_email_otp(email, check_fn)
+    if not ok:
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP code. Please request a new code.")
+
+    return {"success": True, "message": "Institute email verified successfully! Proceed to upload your 4 photos."}
+
+@app.post("/api/onboarding/submit")
+async def submit_student_onboarding(
+    email: str = Form(...),
+    roll_no: str = Form(...),
+    name: str = Form(...),
+    branch: str = Form(...),
+    photos: Optional[List[UploadFile]] = File(None),
+    photos_b64: Optional[str] = Form(None),
+    auto_generate_embeddings: bool = Form(True)
+):
+    import json
+    email = email.strip().lower()
+    roll_no = roll_no.strip().upper()
+    name = name.strip()
+    branch = branch.strip()
+
+    # 1. Enforce that email OTP was previously verified
+    if not db.is_email_verified(email):
+        raise HTTPException(status_code=403, detail="Institute email verification expired or incomplete. Please verify your email via OTP first.")
+
+    # 2. Check roll no collision
+    if db.get_student_by_roll(roll_no):
+        raise HTTPException(status_code=400, detail=f"Roll Number '{roll_no}' is already registered in the system.")
+
+    # 3. Decode photos (files or base64 snapshots from phone camera)
+    engine = get_face_engine()
+    raw_images = []
+
+    if photos:
+        for f in photos:
+            if f.filename:
+                content = await f.read()
+                img = engine.decode_image_bytes(content)
+                if img is not None and img.size > 0:
+                    raw_images.append((img, f.filename))
+
+    if photos_b64:
+        try:
+            parsed = json.loads(photos_b64)
+            if not isinstance(parsed, list):
+                parsed = [parsed]
+            for idx, b64_item in enumerate(parsed):
+                s = str(b64_item)
+                if "," in s:
+                    s = s.split(",", 1)[1]
+                b_bytes = base64.b64decode(s)
+                img = engine.decode_image_bytes(b_bytes)
+                if img is not None and img.size > 0:
+                    raw_images.append((img, f"photo_angle_{idx+1}.jpg"))
+        except Exception as e:
+            print("[Onboarding] Error decoding base64 photos:", e)
+
+    if len(raw_images) < 4:
+        raise HTTPException(status_code=400, detail=f"Please provide all 4 requested photos (Forward, Left Tilt, Right Tilt, Slight Smile). Received only {len(raw_images)}.")
+
+    # 4. Save photos to student directory on disk
+    clean_name = "".join(c for c in name if c.isalnum() or c in (" ", "_", "-")).strip()
+    student_dir = PHOTOS_DIR / clean_name
+    student_dir.mkdir(parents=True, exist_ok=True)
+
+    saved_photo_paths = []
+    valid_embeddings = []
+    first_photo_rel = None
+
+    for idx, (img_bgr, orig_name) in enumerate(raw_images, start=1):
+        filename = f"{roll_no}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{idx}.jpg"
+        dest_path = student_dir / filename
+        cv2.imwrite(str(dest_path), img_bgr)
+        rel_path = str(dest_path.relative_to(ROOT))
+        saved_photo_paths.append(rel_path)
+
+        if first_photo_rel is None:
+            first_photo_rel = rel_path
+
+        # If auto_generate_embeddings is requested, calculate embedding now;
+        # otherwise, batch script `generate_embeddings.py` can be run anytime later!
+        if auto_generate_embeddings:
+            try:
+                emb, err = engine.extract_single_face_embedding(img_bgr)
+                if not err and emb is not None:
+                    valid_embeddings.append((emb, rel_path))
+            except Exception as ex:
+                print(f"[Onboarding] Extraction note for photo {idx}:", ex)
+
+    # 5. Insert student into database
+    student_id = db.add_student(
+        roll_no=roll_no,
+        name=name,
+        branch=branch,
+        photo_path=first_photo_rel,
+        embeddings=valid_embeddings if auto_generate_embeddings else None,
+        email=email
+    )
+
+    # 6. Auto-enroll in all courses
+    courses = db.get_all_courses()
+    for c in courses:
+        db.enroll_student_in_course(c["id"], student_id)
+
+    return {
+        "success": True,
+        "student_id": student_id,
+        "roll_no": roll_no,
+        "name": name,
+        "branch": branch,
+        "email": email,
+        "photos_saved": len(saved_photo_paths),
+        "embeddings_created": len(valid_embeddings),
+        "message": f"Welcome, {name}! Your data and 4 photos were collected successfully. You are now enrolled in the AI Attendance System."
+    }
 
 # ----------------- Students API ----------------- #
 

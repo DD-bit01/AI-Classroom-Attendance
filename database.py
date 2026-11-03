@@ -23,7 +23,24 @@ def init_db():
         roll_no TEXT UNIQUE NOT NULL,
         name TEXT NOT NULL,
         branch TEXT NOT NULL,
+        email TEXT,
         photo_path TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+    try:
+        cursor.execute("ALTER TABLE students ADD COLUMN email TEXT")
+    except Exception:
+        pass
+
+    # Self-Registration Pending & OTP verification table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS email_verifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL,
+        otp_hash TEXT NOT NULL,
+        verified INTEGER DEFAULT 0,
+        expires_at TIMESTAMP NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
@@ -172,12 +189,12 @@ def seed_existing_data():
 
 # ----------------- Student Management ----------------- #
 
-def add_student(roll_no: str, name: str, branch: str, photo_path: str, embeddings: list = None):
+def add_student(roll_no: str, name: str, branch: str, photo_path: str, embeddings: list = None, email: str = None):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO students (roll_no, name, branch, photo_path) VALUES (?, ?, ?, ?)",
-        (roll_no.strip().upper(), name.strip(), branch.strip(), photo_path)
+        "INSERT INTO students (roll_no, name, branch, photo_path, email) VALUES (?, ?, ?, ?, ?)",
+        (roll_no.strip().upper(), name.strip(), branch.strip(), photo_path, email.strip() if email else None)
     )
     student_id = cursor.lastrowid
 
@@ -224,6 +241,16 @@ def get_student_by_roll(roll_no: str):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM students WHERE UPPER(roll_no) = UPPER(?)", (roll_no.strip(),))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def get_student_by_email(email: str):
+    if not email:
+        return None
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM students WHERE LOWER(email) = LOWER(?)", (email.strip(),))
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
@@ -675,6 +702,80 @@ def get_student_portal_stats(roll_no: str):
         "courses": courses,
         "history": history
     }
+
+# ----------------- Email Verification & Self-Enrollment ----------------- #
+
+def save_email_otp(email: str, otp_hash: str, expires_at: datetime):
+    conn = get_connection()
+    cursor = conn.cursor()
+    # Invalidate previous unverified OTPs for this email
+    cursor.execute("DELETE FROM email_verifications WHERE email = ?", (email.strip().lower(),))
+    cursor.execute("""
+        INSERT INTO email_verifications (email, otp_hash, verified, expires_at)
+        VALUES (?, ?, 0, ?)
+    """, (email.strip().lower(), otp_hash, expires_at.strftime("%Y-%m-%d %H:%M:%S")))
+    conn.commit()
+    conn.close()
+
+def verify_email_otp(email: str, check_hash_fn) -> bool:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, otp_hash, expires_at FROM email_verifications
+        WHERE email = ? AND verified = 0
+        ORDER BY id DESC LIMIT 1
+    """, (email.strip().lower(),))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return False
+
+    exp = datetime.strptime(row["expires_at"], "%Y-%m-%d %H:%M:%S")
+    if datetime.now() > exp:
+        conn.close()
+        return False
+
+    if check_hash_fn(row["otp_hash"]):
+        cursor.execute("UPDATE email_verifications SET verified = 1 WHERE id = ?", (row["id"],))
+        conn.commit()
+        conn.close()
+        return True
+
+    conn.close()
+    return False
+
+def is_email_verified(email: str) -> bool:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, expires_at FROM email_verifications
+        WHERE email = ? AND verified = 1
+        ORDER BY id DESC LIMIT 1
+    """, (email.strip().lower(),))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return False
+    exp = datetime.strptime(row["expires_at"], "%Y-%m-%d %H:%M:%S")
+    # Verified token remains valid for 60 minutes for registration completion
+    return (datetime.now() - exp).total_seconds() < 3600
+
+def get_pending_raw_photo_students():
+    """Returns students who have photos saved in their folder but 0 embeddings in DB."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT s.id, s.roll_no, s.name, s.branch, s.email, s.photo_path,
+               COUNT(e.id) as embedding_count
+        FROM students s
+        LEFT JOIN student_embeddings e ON s.id = e.student_id
+        GROUP BY s.id
+        HAVING embedding_count = 0
+        ORDER BY s.id DESC
+    """)
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
 
 if __name__ == "__main__":
     init_db()
