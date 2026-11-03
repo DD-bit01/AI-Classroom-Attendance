@@ -241,7 +241,7 @@ async def submit_student_onboarding(
         raise HTTPException(status_code=400, detail=f"Please provide all 4 requested photos (Forward, Left Tilt, Right Tilt, Slight Smile). Received only {len(raw_images)}.")
 
     # 4. Save photos to student directory on disk
-    clean_name = "".join(c for c in name if c.isalnum() or c in (" ", "_", "-")).strip()
+    clean_name = "".join(c for c in name if c.isalnum() or c in (" ", "_", "-")).strip() or roll_no
     student_dir = PHOTOS_DIR / clean_name
     student_dir.mkdir(parents=True, exist_ok=True)
 
