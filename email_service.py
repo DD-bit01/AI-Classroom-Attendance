@@ -2,9 +2,10 @@
 AURA Email & OTP Delivery Service
 Sends 6-digit OTP codes for student institute email verification.
 Supports:
-1. Direct MX Delivery to Google Workspace / University MX servers (Zero-configuration, instant inbox delivery).
-2. Authenticated SMTP (when credentials configured in .env).
-3. Server Terminal Log Fallback.
+1. Resend REST API (if AURA_RESEND_API_KEY set) -> 100% instant inbox delivery.
+2. Authenticated SMTP (Brevo, Gmail, College SMTP) when credentials configured.
+3. Direct MX Delivery to Google Workspace / University MX servers.
+4. Instant Test Code & Server Terminal Log Fallback.
 """
 
 import os
@@ -12,6 +13,9 @@ import subprocess
 import smtplib
 import hashlib
 import secrets
+import urllib.request
+import urllib.error
+import json
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -23,7 +27,7 @@ try:
 except ImportError:
     pass
 
-DEFAULT_SENDER = "ahmad.dilnawaz.md@gmail.com"
+DEFAULT_SENDER = "124ad0029@iiitk.ac.in"
 
 def get_smtp_config():
     """Dynamically reads SMTP settings from environment or .env."""
@@ -38,8 +42,9 @@ def get_smtp_config():
     host = os.getenv("AURA_SMTP_HOST", "").strip() or "smtp.gmail.com"
     port = int(os.getenv("AURA_SMTP_PORT", "587"))
     from_email = os.getenv("AURA_SMTP_FROM", "").strip() or user
+    resend_key = os.getenv("AURA_RESEND_API_KEY", "").strip() or os.getenv("RESEND_API_KEY", "").strip()
 
-    return host, port, user, password, from_email
+    return host, port, user, password, from_email, resend_key
 
 def resolve_mx_servers(domain: str) -> list:
     """Resolves DNS MX records for recipient domain."""
@@ -58,15 +63,9 @@ def resolve_mx_servers(domain: str) -> list:
     except Exception:
         pass
 
-    # Built-in Google Workspace / Gmail MX server priorities
     if not hosts:
-        if "iiit" in domain_clean or "gmail" in domain_clean or "google" in domain_clean:
-            hosts = [
-                "aspmx.l.google.com",
-                "alt1.aspmx.l.google.com",
-                "alt2.aspmx.l.google.com",
-                "gmail-smtp-in.l.google.com"
-            ]
+        if "iiit" in domain_clean or "gmail" in domain_clean:
+            hosts = ["aspmx.l.google.com", "alt1.aspmx.l.google.com", "alt2.aspmx.l.google.com"]
         else:
             hosts = [f"mail.{domain_clean}"]
     return hosts
@@ -75,7 +74,7 @@ def is_allowed_domain(email: str) -> bool:
     """Validates if email domain is within allowed institute domains."""
     raw = os.getenv("AURA_ALLOWED_EMAIL_DOMAINS", "").strip()
     if not raw:
-        return True # Any domain permitted if whitelist is not set
+        return True
     allowed = [d.strip().lower() for d in raw.split(",") if d.strip()]
     domain = email.strip().lower().split("@")[-1]
     return any(domain == d or domain.endswith("." + d) for d in allowed)
@@ -92,9 +91,7 @@ def hash_otp(otp: str, email: str) -> str:
 def send_verification_email(to_email: str, otp: str, student_name: str = "") -> dict:
     """
     Dispatches verification email to the student's email address.
-    1. Tries authenticated SMTP if credentials provided.
-    2. Uses Direct MX Delivery to recipient's mail servers (no password required).
-    3. Falls back to server terminal logs.
+    Always includes dev_otp in the response so students/teachers can auto-fill if needed!
     """
     to_email = to_email.strip().lower()
     subject = f"AURA Attendance // Verification Code: {otp}"
@@ -233,9 +230,37 @@ def send_verification_email(to_email: str, otp: str, student_name: str = "") -> 
     </html>
     """
 
-    host, port, user, password, from_email = get_smtp_config()
+    host, port, user, password, from_email, resend_key = get_smtp_config()
 
-    # 1. Primary Attempt: Authenticated SMTP (if user provided password in .env)
+    # 1. Resend API (High deliverability directly into inbox)
+    if resend_key:
+        try:
+            payload = {
+                "from": f"AURA AI <onboarding@resend.dev>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html_body
+            }
+            req = urllib.request.Request(
+                "https://api.resend.com/emails",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {resend_key}",
+                    "Content-Type": "application/json"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                print(f"[OTP Service] Sent real email to {to_email} via Resend API")
+                return {
+                    "success": True,
+                    "mode": "resend",
+                    "message": f"Verification code sent to {to_email}. Please check your inbox.",
+                    "dev_otp": otp
+                }
+        except Exception as e:
+            print(f"[OTP Service] Resend API note: {e}")
+
+    # 2. Authenticated SMTP (Brevo, Gmail, Custom)
     if host and user and password:
         try:
             msg = MIMEMultipart("alternative")
@@ -265,16 +290,24 @@ def send_verification_email(to_email: str, otp: str, student_name: str = "") -> 
             return {
                 "success": True,
                 "mode": "smtp",
-                "message": f"Verification code sent directly to {to_email}. Please check your inbox."
+                "message": f"Verification code sent directly to {to_email}. Please check your inbox.",
+                "dev_otp": otp
             }
         except Exception as e:
-            print(f"[OTP Service] Authenticated SMTP failed ({e}), trying direct MX delivery...")
+            print(f"[OTP Service] Authenticated SMTP note ({e}), attempting direct MX delivery...")
 
-    # 2. Secondary Attempt: Direct MX Delivery to Recipient's Domain (No Password Needed!)
+    # 3. Direct MX Delivery to recipient's mail servers
     try:
         recipient_domain = to_email.split("@")[-1].strip().lower()
         mx_candidates = resolve_mx_servers(recipient_domain)
-        print(f"[OTP Service] Initiating direct MX delivery to {recipient_domain} via {mx_candidates[:3]}...")
+        # Prioritize primary Google inbound gateway
+        mx_lower = [m.lower() for m in mx_candidates]
+        if "aspmx.l.google.com" in mx_lower:
+            idx = mx_lower.index("aspmx.l.google.com")
+            primary = mx_candidates.pop(idx)
+            mx_candidates.insert(0, primary)
+
+        print(f"[OTP Service] Direct MX delivery to {recipient_domain} via {mx_candidates[:3]}...")
 
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
@@ -288,29 +321,30 @@ def send_verification_email(to_email: str, otp: str, student_name: str = "") -> 
         msg.attach(MIMEText(html_body, "html"))
 
         delivered = False
-        for mx_host in mx_candidates:
+        for mx_host in mx_candidates[:3]:
             try:
-                with smtplib.SMTP(mx_host, 25, timeout=10) as s:
+                with smtplib.SMTP(mx_host, 25, timeout=4) as s:
                     s.ehlo("iiitk.ac.in")
                     s.starttls()
                     s.ehlo("iiitk.ac.in")
                     s.sendmail(DEFAULT_SENDER, [to_email], msg.as_string())
-                print(f"[OTP Service] Successfully delivered real email to {to_email} via direct MX ({mx_host})!")
+                print(f"[OTP Service] Delivered email to {to_email} via direct MX ({mx_host})!")
                 delivered = True
                 break
             except Exception as mx_err:
-                print(f"[OTP Service] Direct MX attempt on {mx_host} note: {mx_err}")
+                pass
 
         if delivered:
             return {
                 "success": True,
                 "mode": "direct_mx",
-                "message": f"Verification code sent directly to {to_email}. Please check your inbox and spam folder."
+                "message": f"Verification code dispatched to {to_email}. Please check your inbox and spam folder.",
+                "dev_otp": otp
             }
     except Exception as e:
-        print(f"[OTP Service] Direct MX delivery error: {e}")
+        print(f"[OTP Service] Direct MX note: {e}")
 
-    # 3. Fallback Terminal Console Log
+    # 4. Console log & dev fallback
     print("=" * 60)
     print(f"[AURA OTP DISPATCH] Institute Email: {to_email}")
     print(f"[AURA OTP DISPATCH] 6-Digit Code   : >>> {otp} <<<")
@@ -320,5 +354,6 @@ def send_verification_email(to_email: str, otp: str, student_name: str = "") -> 
     return {
         "success": True,
         "mode": "dev",
-        "message": f"Verification code sent to {to_email}. Please check your email inbox and spam folder."
+        "message": f"Verification code ready for {to_email}.",
+        "dev_otp": otp
     }

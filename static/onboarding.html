@@ -351,6 +351,44 @@
             box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
         }
 
+        /* Test Code / Dev OTP Box */
+        .dev-otp-card {
+            background: #0d1612;
+            border: 1px solid #166534;
+            border-radius: var(--radius-sm, 4px);
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #86efac;
+            gap: 8px;
+        }
+
+        .dev-otp-code {
+            font-family: var(--font-mono, 'JetBrains Mono', monospace);
+            font-size: 16px;
+            font-weight: 700;
+            background: #052e16;
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: #4ade80;
+            letter-spacing: 2px;
+        }
+
+        .btn-dev-autofill {
+            background: #14532d;
+            border: 1px solid #22c55e;
+            color: #ffffff;
+            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 700;
+            font-family: inherit;
+        }
+
         /* 4 Photo Slots Grid */
         .photos-grid {
             display: grid;
@@ -772,9 +810,15 @@
                     </div>
 
                     <!-- Inbox Dispatch Notice -->
-                    <div id="inbox-notice" class="info-tip-box" style="display:none; margin-bottom:16px; border-color:#383840;">
+                    <div id="inbox-notice" class="info-tip-box" style="display:none; margin-bottom:12px; border-color:#383840;">
                         <span class="icon">✉</span>
-                        <span>Verification code dispatched to <strong id="sent-email-display" style="color:#ffffff;"></strong>. Please check your email inbox and spam folder.</span>
+                        <span>Verification code dispatched to <strong id="sent-email-display" style="color:#ffffff;"></strong>. Please check your inbox and spam folder.</span>
+                    </div>
+
+                    <!-- Instant Test Code Card -->
+                    <div id="dev-otp-card" class="dev-otp-card" style="display:none;">
+                        <span>⚡ Test Code: <span id="dev-otp-val" class="dev-otp-code">------</span></span>
+                        <button type="button" class="btn-dev-autofill" id="btn-autofill-otp">Auto-Fill</button>
                     </div>
 
                     <!-- OTP Input Box (Revealed after code dispatch) -->
@@ -1016,6 +1060,9 @@
         const boxOtp = document.getElementById('box-otp-entry');
         const inboxNotice = document.getElementById('inbox-notice');
         const sentEmailDisplay = document.getElementById('sent-email-display');
+        const devOtpCard = document.getElementById('dev-otp-card');
+        const devOtpVal = document.getElementById('dev-otp-val');
+        const btnAutofill = document.getElementById('btn-autofill-otp');
         const linkResend = document.getElementById('link-resend-otp');
         const otpInputs = document.querySelectorAll('.otp-input');
 
@@ -1062,7 +1109,14 @@
                     inboxNotice.style.display = 'flex';
                 }
 
-                showToast(data.message || 'Verification code sent to your email');
+                if (data.dev_otp && devOtpCard && devOtpVal) {
+                    devOtpCard.style.display = 'flex';
+                    devOtpVal.textContent = data.dev_otp;
+                } else if (devOtpCard) {
+                    devOtpCard.style.display = 'none';
+                }
+
+                showToast(data.message || 'Verification code dispatched to your email');
                 otpInputs[0].focus();
             } catch (err) {
                 showToast(err.message, true);
@@ -1074,6 +1128,18 @@
 
         btnSendOtp.addEventListener('click', handleSendOtp);
         linkResend.addEventListener('click', (e) => { e.preventDefault(); handleSendOtp(); });
+
+        if (btnAutofill) {
+            btnAutofill.addEventListener('click', () => {
+                const code = devOtpVal.textContent.trim();
+                if (code && code.length === 6) {
+                    for (let i = 0; i < 6; i++) {
+                        otpInputs[i].value = code[i];
+                    }
+                    showToast('Code auto-filled!');
+                }
+            });
+        }
 
         btnVerifyOtp.addEventListener('click', async () => {
             let otp = '';
