@@ -28,7 +28,7 @@ def get_smtp_config():
     except Exception:
         pass
 
-    user = os.getenv("AURA_SMTP_USER", "").strip() or "ahmad.dilnawaz.md@gmail.com"
+    user = os.getenv("AURA_SMTP_USER", "").strip() or "124ad0029@iiitk.ac.in"
     password = os.getenv("AURA_SMTP_PASS", "").strip()
     host = os.getenv("AURA_SMTP_HOST", "").strip() or "smtp.gmail.com"
     port = int(os.getenv("AURA_SMTP_PORT", "587"))
@@ -259,6 +259,5 @@ def send_verification_email(to_email: str, otp: str, student_name: str = "") -> 
     return {
         "success": True,
         "mode": "dev",
-        "message": f"Verification code sent to {to_email} (Dev/Console active)",
-        "dev_otp": otp
+        "message": f"Verification code sent to {to_email}. Please check your email inbox and spam folder."
     }

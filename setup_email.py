@@ -14,15 +14,16 @@ def main():
     print("=" * 65)
     print("  AURA AI // Email Delivery Configuration Setup")
     print("=" * 65)
-    print("  Sender Email : ahmad.dilnawaz.md@gmail.com")
-    print("  SMTP Server  : smtp.gmail.com (Port 587)")
+    print("  Sender Email : 124ad0029@iiitk.ac.in")
+    print("  Mail Server  : smtp.gmail.com (Google Workspace, Port 587)")
     print("=" * 65)
     print()
     print("To allow AURA to dispatch real OTP emails to student inboxes:")
-    print("1. Go to your Google Account Security: https://myaccount.google.com/security")
-    print("2. Ensure 2-Step Verification is ON.")
-    print("3. Open App Passwords: https://myaccount.google.com/apppasswords")
-    print("4. Create an app name (e.g. 'AURA AI') and copy the 16-character password.")
+    print("1. Log in to your college account: 124ad0029@iiitk.ac.in")
+    print("2. Go to Google Security: https://myaccount.google.com/security")
+    print("3. Ensure 2-Step Verification is ON.")
+    print("4. Open App Passwords: https://myaccount.google.com/apppasswords")
+    print("5. Generate a 16-character App Password (e.g. 'AURA Attendance').")
     print()
 
     # Read password without echoing to terminal
@@ -31,26 +32,25 @@ def main():
         print("[!] No password entered. Aborted.")
         return
 
-    # Clean spaces (Google shows them as 'xxxx xxxx xxxx xxxx')
     clean_pass = app_pass.replace(" ", "")
 
     content = f"""# AURA AI Attendance - Secure Environment Variables
 AURA_SMTP_HOST=smtp.gmail.com
 AURA_SMTP_PORT=587
-AURA_SMTP_USER=ahmad.dilnawaz.md@gmail.com
+AURA_SMTP_USER=124ad0029@iiitk.ac.in
 AURA_SMTP_PASS={clean_pass}
-AURA_SMTP_FROM=ahmad.dilnawaz.md@gmail.com
+AURA_SMTP_FROM=124ad0029@iiitk.ac.in
 """
     with open(ENV_PATH, "w", encoding="utf-8") as f:
         f.write(content)
 
     print()
     print("Saved successfully to .env (Protected by .gitignore)!")
-    print("Testing connection and sending a test email to ahmad.dilnawaz.md@gmail.com...")
+    print("Testing connection and sending a test email to 124ad0029@iiitk.ac.in...")
 
     # Test delivery
     import email_service
-    res = email_service.send_verification_email("ahmad.dilnawaz.md@gmail.com", "849201", "Dilnawaz")
+    res = email_service.send_verification_email("124ad0029@iiitk.ac.in", "849201", "Dilnawaz")
     print()
     print("Delivery Test Result:", res.get("message"))
     if res.get("mode") == "smtp":
