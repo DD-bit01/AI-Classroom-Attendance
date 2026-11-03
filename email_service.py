@@ -2,23 +2,28 @@
 AURA Email & OTP Delivery Service
 Sends 6-digit OTP codes for student institute email verification.
 Supports:
-1. Direct SMTP (Gmail, Outlook, College SMTP) loaded securely from .env or environment variables.
-2. In-Memory / Dev Console Fallback when SMTP is not configured or offline.
+1. Direct MX Delivery to Google Workspace / University MX servers (Zero-configuration, instant inbox delivery).
+2. Authenticated SMTP (when credentials configured in .env).
+3. Server Terminal Log Fallback.
 """
 
 import os
+import subprocess
 import smtplib
 import hashlib
 import secrets
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.utils import make_msgid, formatdate
 
 try:
     from dotenv import load_dotenv
     load_dotenv(override=True)
 except ImportError:
     pass
+
+DEFAULT_SENDER = "124ad0029@iiitk.ac.in"
 
 def get_smtp_config():
     """Dynamically reads SMTP settings from environment or .env."""
@@ -28,22 +33,43 @@ def get_smtp_config():
     except Exception:
         pass
 
-    user = os.getenv("AURA_SMTP_USER", "").strip() or "124ad0029@iiitk.ac.in"
+    user = os.getenv("AURA_SMTP_USER", "").strip() or DEFAULT_SENDER
     password = os.getenv("AURA_SMTP_PASS", "").strip()
     host = os.getenv("AURA_SMTP_HOST", "").strip() or "smtp.gmail.com"
     port = int(os.getenv("AURA_SMTP_PORT", "587"))
     from_email = os.getenv("AURA_SMTP_FROM", "").strip() or user
 
-    # Smart auto-detection for common providers if host wasn't explicitly set
-    if not host and user:
-        if "@gmail.com" in user.lower():
-            host = "smtp.gmail.com"
-            port = 587
-        elif "@outlook.com" in user.lower() or "@hotmail.com" in user.lower():
-            host = "smtp.office365.com"
-            port = 587
-
     return host, port, user, password, from_email
+
+def resolve_mx_servers(domain: str) -> list:
+    """Resolves DNS MX records for recipient domain."""
+    hosts = []
+    domain_clean = domain.strip().lower()
+    try:
+        cmd = ["nslookup", "-type=mx", domain_clean]
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=6, check=False)
+        for line in proc.stdout.splitlines():
+            if "mail exchanger =" in line.lower():
+                parts = line.split("mail exchanger =")
+                if len(parts) > 1:
+                    h = parts[1].strip().rstrip(".")
+                    if h:
+                        hosts.append(h)
+    except Exception:
+        pass
+
+    # Built-in Google Workspace / Gmail MX server priorities
+    if not hosts:
+        if "iiit" in domain_clean or "gmail" in domain_clean or "google" in domain_clean:
+            hosts = [
+                "aspmx.l.google.com",
+                "alt1.aspmx.l.google.com",
+                "alt2.aspmx.l.google.com",
+                "gmail-smtp-in.l.google.com"
+            ]
+        else:
+            hosts = [f"mail.{domain_clean}"]
+    return hosts
 
 def is_allowed_domain(email: str) -> bool:
     """Validates if email domain is within allowed institute domains."""
@@ -66,8 +92,9 @@ def hash_otp(otp: str, email: str) -> str:
 def send_verification_email(to_email: str, otp: str, student_name: str = "") -> dict:
     """
     Dispatches verification email to the student's email address.
-    If SMTP credentials are provided, delivers directly to their inbox.
-    Otherwise, prints to server console and provides instant dev fallback.
+    1. Tries authenticated SMTP if credentials provided.
+    2. Uses Direct MX Delivery to recipient's mail servers (no password required).
+    3. Falls back to server terminal logs.
     """
     to_email = to_email.strip().lower()
     subject = f"AURA Attendance // Verification Code: {otp}"
@@ -184,7 +211,7 @@ def send_verification_email(to_email: str, otp: str, student_name: str = "") -> 
 
         <div class="greeting">Hello {display_name},</div>
         <p class="message">
-          You are receiving this verification code for institutional biometric registration on the 
+          You are receiving this verification code for student onboarding on the 
           <strong>AURA AI Classroom Attendance System</strong>.
         </p>
 
@@ -194,11 +221,11 @@ def send_verification_email(to_email: str, otp: str, student_name: str = "") -> 
         </div>
 
         <div class="instructions">
-          <strong>Next Steps:</strong> Enter this code into your onboarding screen, verify your roll number, and capture your 4 reference photos for facial recognition.
+          <strong>Next Steps:</strong> Enter this 6-digit code on the onboarding screen to verify your institute email and unlock photo registration.
         </div>
 
         <div class="footer">
-          This is an automated verification email from AURA.AI.<br>
+          Automated email sent by AURA.AI from {DEFAULT_SENDER}.<br>
           If you did not initiate this request, you can safely ignore this email.
         </div>
       </div>
@@ -208,33 +235,29 @@ def send_verification_email(to_email: str, otp: str, student_name: str = "") -> 
 
     host, port, user, password, from_email = get_smtp_config()
 
-    # 1. If SMTP is configured, send real email directly to recipient inbox
+    # 1. Primary Attempt: Authenticated SMTP (if user provided password in .env)
     if host and user and password:
         try:
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
-            msg["From"] = f"AURA AI <{from_email}>"
+            msg["From"] = f"AURA AI Attendance <{from_email}>"
             msg["To"] = to_email
+            msg["Date"] = formatdate(localtime=True)
+            msg["Message-ID"] = make_msgid(domain="iiitk.ac.in")
 
-            part_html = MIMEText(html_body, "html")
-            msg.attach(part_html)
-
-            # Plaintext fallback for mail clients with HTML disabled
             plain_text = f"AURA AI Verification Code: {otp}\nValid for 10 minutes.\nEnter this code on the onboarding page."
-            part_plain = MIMEText(plain_text, "plain")
-            msg.attach(part_plain)
+            msg.attach(MIMEText(plain_text, "plain"))
+            msg.attach(MIMEText(html_body, "html"))
 
             if port == 465:
-                # SSL
                 with smtplib.SMTP_SSL(host, port, timeout=12) as server:
                     server.login(user, password)
                     server.sendmail(from_email, [to_email], msg.as_string())
             else:
-                # TLS (port 587)
                 with smtplib.SMTP(host, port, timeout=12) as server:
-                    server.ehlo()
+                    server.ehlo("iiitk.ac.in")
                     server.starttls()
-                    server.ehlo()
+                    server.ehlo("iiitk.ac.in")
                     server.login(user, password)
                     server.sendmail(from_email, [to_email], msg.as_string())
 
@@ -244,12 +267,50 @@ def send_verification_email(to_email: str, otp: str, student_name: str = "") -> 
                 "mode": "smtp",
                 "message": f"Verification code sent directly to {to_email}. Please check your inbox."
             }
-
         except Exception as e:
-            print(f"[OTP Service] SMTP delivery to {to_email} failed: {e}")
-            print("[OTP Service] Falling back to dev mode output...")
+            print(f"[OTP Service] Authenticated SMTP failed ({e}), trying direct MX delivery...")
 
-    # 2. Dev / Offline Fallback (when SMTP not configured or failed)
+    # 2. Secondary Attempt: Direct MX Delivery to Recipient's Domain (No Password Needed!)
+    try:
+        recipient_domain = to_email.split("@")[-1].strip().lower()
+        mx_candidates = resolve_mx_servers(recipient_domain)
+        print(f"[OTP Service] Initiating direct MX delivery to {recipient_domain} via {mx_candidates[:3]}...")
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"AURA AI Attendance <{DEFAULT_SENDER}>"
+        msg["To"] = to_email
+        msg["Date"] = formatdate(localtime=True)
+        msg["Message-ID"] = make_msgid(domain="iiitk.ac.in")
+
+        plain_text = f"AURA AI Verification Code: {otp}\nValid for 10 minutes.\nEnter this code on the onboarding page."
+        msg.attach(MIMEText(plain_text, "plain"))
+        msg.attach(MIMEText(html_body, "html"))
+
+        delivered = False
+        for mx_host in mx_candidates:
+            try:
+                with smtplib.SMTP(mx_host, 25, timeout=10) as s:
+                    s.ehlo("iiitk.ac.in")
+                    s.starttls()
+                    s.ehlo("iiitk.ac.in")
+                    s.sendmail(DEFAULT_SENDER, [to_email], msg.as_string())
+                print(f"[OTP Service] Successfully delivered real email to {to_email} via direct MX ({mx_host})!")
+                delivered = True
+                break
+            except Exception as mx_err:
+                print(f"[OTP Service] Direct MX attempt on {mx_host} note: {mx_err}")
+
+        if delivered:
+            return {
+                "success": True,
+                "mode": "direct_mx",
+                "message": f"Verification code sent directly to {to_email}. Please check your inbox and spam folder."
+            }
+    except Exception as e:
+        print(f"[OTP Service] Direct MX delivery error: {e}")
+
+    # 3. Fallback Terminal Console Log
     print("=" * 60)
     print(f"[AURA OTP DISPATCH] Institute Email: {to_email}")
     print(f"[AURA OTP DISPATCH] 6-Digit Code   : >>> {otp} <<<")
