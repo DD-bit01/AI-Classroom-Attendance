@@ -47,7 +47,8 @@ for d in subdirs:
     branch_raw = row.get('branch', '').strip().upper()
     email = row.get('email', '').strip()
 
-    if roll in existing_rolls or name.lower() in existing_names:
+    # Matching strictly on roll number (unique student identifier)
+    if roll in existing_rolls:
         print(f"[SKIPPED - ALREADY REGISTERED] {roll} - {name}")
         skipped_count += 1
         continue
