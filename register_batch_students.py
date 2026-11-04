@@ -11,7 +11,7 @@ ROOT = Path('.').resolve()
 PHOTOS_DIR = ROOT / 'student_photos'
 PHOTOS_DIR.mkdir(exist_ok=True)
 
-base_photos = r"D:\WpSystem\S-1-5-21-2060029638-1161821906-4011473822-1001\AppData\Local\Packages\5319275A.WhatsAppDesktop_cv1g1gvanyjgm\LocalState\sessions\0ABB8D85156C8B6330FBA94F0094F31C998DD2BF\transfers\2026-45\photos (2)\photos"
+base_photos = r"C:\Users\Md Dilnawaz Ahmad\Downloads\photos (3)\photos"
 
 engine = FaceEngine.get_instance()
 courses = db.get_all_courses()
