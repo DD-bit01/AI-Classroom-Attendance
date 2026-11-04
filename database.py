@@ -258,6 +258,21 @@ def get_student_by_roll(roll_no: str):
     conn.close()
     return dict(row) if row else None
 
+def delete_student_by_roll(roll_no: str) -> bool:
+    student = get_student_by_roll(roll_no)
+    if not student:
+        return False
+    s_id = student["id"]
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM attendance WHERE student_id = ?", (s_id,))
+    cursor.execute("DELETE FROM course_enrollments WHERE student_id = ?", (s_id,))
+    cursor.execute("DELETE FROM student_embeddings WHERE student_id = ?", (s_id,))
+    cursor.execute("DELETE FROM students WHERE id = ?", (s_id,))
+    conn.commit()
+    conn.close()
+    return True
+
 def get_student_by_email(email: str):
     if not email:
         return None
