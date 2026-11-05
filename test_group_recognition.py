@@ -19,7 +19,7 @@ IMAGE_DIR = ROOT / "test_images"
 OUTPUT_DIR = ROOT / "annotated_samples"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-DEFAULT_THRESHOLD = 0.36
+DEFAULT_THRESHOLD = 0.35
 
 def run_tests(target_path=None, threshold=DEFAULT_THRESHOLD):
     engine = get_face_engine()

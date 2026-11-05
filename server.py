@@ -679,7 +679,7 @@ async def recognize_group_attendance(
     session_id: int = Form(...),
     image: Optional[UploadFile] = File(None),
     images: Optional[List[UploadFile]] = File(None),
-    threshold: float = Form(0.38)
+    threshold: float = Form(0.35)
 ):
     session = db.get_session_by_id(session_id)
     if not session:
@@ -693,8 +693,14 @@ async def recognize_group_attendance(
     if not raw_files:
         raise HTTPException(status_code=400, detail="Please upload or snap at least one classroom image.")
 
+    # If client passed legacy/cached default 0.38, adjust to 0.35 for group classroom photos
+    if abs(threshold - 0.38) < 1e-4:
+        threshold = 0.35
+
+    print(f"\n[RECOGNIZE_GROUP] session_id={session_id}, effective_threshold={threshold}, files={[f.filename for f in raw_files]}")
     engine = get_face_engine()
     known_emb, known_ids, id_meta = db.get_registered_embeddings_for_session(session_id)
+    print(f"[RECOGNIZE_GROUP] Loaded {len(known_ids) if known_ids is not None else 0} embeddings for session {session_id}")
 
     total_faces = 0
     annotated_images_b64 = []
@@ -715,6 +721,13 @@ async def recognize_group_attendance(
             threshold=threshold,
             draw_annotations=True
         )
+
+        print(f"[RECOGNIZE_GROUP] File {f.filename}: {len(dets)} faces detected.")
+        for d in dets:
+            if d.get("is_matched"):
+                print(f"   [MATCH] {d.get('name')} ({d.get('roll_no')}) -> {d.get('score'):.3f}")
+            elif "shashi" in d.get("name", "").lower():
+                print(f"   [SHASHI UNMATCHED] score={d.get('score'):.3f} vs threshold={threshold}")
 
         total_faces += len(dets)
         all_detections.extend(dets)
@@ -760,7 +773,7 @@ async def recognize_group_attendance(
 class LiveFrameModel(BaseModel):
     session_id: int
     frame_b64: str
-    threshold: Optional[float] = 0.38
+    threshold: Optional[float] = 0.35
 
 @app.post("/api/attendance/recognize-frame")
 async def recognize_live_webcam_frame(payload: LiveFrameModel):
@@ -785,7 +798,7 @@ async def recognize_live_webcam_frame(payload: LiveFrameModel):
         known_embeddings=known_emb,
         known_student_ids=known_ids,
         id_meta_map=id_meta,
-        threshold=payload.threshold or 0.38,
+        threshold=payload.threshold or 0.35,
         draw_annotations=True
     )
 

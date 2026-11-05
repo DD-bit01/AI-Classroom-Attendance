@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  attendance-ai:
+    build: .
+    container_name: aura_attendance_ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+    env_file:
+      - .env
+    volumes:
+      # Persistent database and student photo storage
+      - ./attendance.db:/app/attendance.db
+      - ./student_photos:/app/student_photos
+      - ./annotated_samples:/app/annotated_samples
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+          cpus: '2.0'
+        reservations:
+          memory: 1.5G

@@ -11,6 +11,10 @@ if not YUNET_PATH.exists():
     YUNET_PATH = ROOT / "models/face_detection_yunet_2023mar.onnx"
 
 RECOGNITION_MODEL = Path.home() / ".insightface/models/buffalo_l/w600k_r50.onnx"
+if not RECOGNITION_MODEL.exists():
+    print(f"[FaceEngine] Model weights not found at {RECOGNITION_MODEL}. Pre-fetching Buffalo_L...")
+    import insightface
+    insightface.app.FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
 
 class FaceEngine:
     _instance = None
@@ -219,7 +223,7 @@ class FaceEngine:
         known_embeddings: np.ndarray = None,
         known_student_ids: np.ndarray = None,
         id_meta_map: dict = None,
-        threshold: float = 0.36,
+        threshold: float = 0.35,
         draw_annotations: bool = True
     ):
         """
@@ -293,7 +297,10 @@ class FaceEngine:
                 continue
             eye_y = (re[1] + le[1]) / 2.0
             mouth_y = (rm[1] + lm[1]) / 2.0
-            if (mouth_y - eye_y) < 0.12 * fh:
+            vert_span = (mouth_y - eye_y) / max(1.0, fh)
+            # Human facial anatomy constraint: eye-to-mouth span must be between 12% and 53% of box height.
+            # Collapsed (<0.12) or vertically stretched (>0.53) landmarks occur on folded arms, hands, sleeves, and collars.
+            if vert_span < 0.12 or vert_span > 0.53:
                 continue
             valid_faces.append(f)
 

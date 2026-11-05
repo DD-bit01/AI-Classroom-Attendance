@@ -156,7 +156,7 @@ const state = {
     regCapturedB64: null,
     webcamFacingMode: 'environment', // Back camera ideal for classrooms
     regFacingMode: 'user', // Selfie camera default for student portrait
-    threshold: 0.38,
+    threshold: 0.35,
     webcamScanInterval: 1400,
     boxStyle: 'minimal', // 'minimal' | 'corners' | 'none'
     showNameTags: true,
@@ -249,6 +249,8 @@ const el = {
     speedPills: document.querySelectorAll('.speed-pill'),
     inputHudThreshold: document.getElementById('input-hud-threshold'),
     labelHudThreshold: document.getElementById('label-hud-threshold'),
+    inputGroupThreshold: document.getElementById('input-group-threshold'),
+    labelGroupThreshold: document.getElementById('label-group-threshold'),
     
     // Roster Table
     rosterCountLabel: document.getElementById('roster-count-label'),
@@ -1011,6 +1013,29 @@ if (el.btnToggleGroupAnnotation) {
     });
 }
 
+// 1-Click Demo Photo Loader for Recruiters & Testing
+async function loadDemoPhoto() {
+    try {
+        showToast('Loading demo 35-student classroom photo...');
+        const res = await fetch('/static/samples/sample_classroom.jpg');
+        if (!res.ok) throw new Error('Sample photo not found');
+        const blob = await res.blob();
+        const file = new File([blob], 'industry_class_photo.jpeg', { type: 'image/jpeg' });
+        await handleFilesSelection([file]);
+        showToast('Demo photo staged! Click "Scan & Identify Faces" below.');
+    } catch (err) {
+        showToast('Could not load demo image: ' + err.message, 'error');
+    }
+}
+
+const btnLoadDemo = document.getElementById('btn-load-demo-photo');
+if (btnLoadDemo) btnLoadDemo.addEventListener('click', loadDemoPhoto);
+const btnDropzoneDemo = document.getElementById('btn-dropzone-demo');
+if (btnDropzoneDemo) btnDropzoneDemo.addEventListener('click', (e) => {
+    e.stopPropagation();
+    loadDemoPhoto();
+});
+
 el.btnProcessGroup.addEventListener('click', async () => {
     if (!state.selectedSessionId) {
         showToast('Please select an active Class Session first!', 'error');
@@ -1029,7 +1054,7 @@ el.btnProcessGroup.addEventListener('click', async () => {
 
     const formData = new FormData();
     formData.append('session_id', state.selectedSessionId);
-    formData.append('threshold', state.threshold || 0.38);
+    formData.append('threshold', state.threshold || 0.35);
     for (const item of state.stagedGroupPhotos) {
         formData.append('images', item.file);
     }
@@ -1193,13 +1218,20 @@ if (el.speedPills) {
     });
 }
 
-// Match Sensitivity (Threshold) Slider
+// Match Sensitivity (Threshold) Sliders (Webcam HUD & Group Photo)
+function updateThreshold(val) {
+    state.threshold = val;
+    if (el.labelHudThreshold) el.labelHudThreshold.textContent = val.toFixed(2);
+    if (el.inputHudThreshold) el.inputHudThreshold.value = val;
+    if (el.labelGroupThreshold) el.labelGroupThreshold.textContent = val.toFixed(2);
+    if (el.inputGroupThreshold) el.inputGroupThreshold.value = val;
+}
+
 if (el.inputHudThreshold) {
-    el.inputHudThreshold.addEventListener('input', (e) => {
-        const val = parseFloat(e.target.value);
-        state.threshold = val;
-        if (el.labelHudThreshold) el.labelHudThreshold.textContent = val.toFixed(2);
-    });
+    el.inputHudThreshold.addEventListener('input', (e) => updateThreshold(parseFloat(e.target.value)));
+}
+if (el.inputGroupThreshold) {
+    el.inputGroupThreshold.addEventListener('input', (e) => updateThreshold(parseFloat(e.target.value)));
 }
 
 if (el.btnFlipWebcam) {
@@ -1479,7 +1511,7 @@ async function processWebcamFrame(isManualSnap = false) {
             body: JSON.stringify({
                 session_id: state.selectedSessionId,
                 frame_b64: frameB64,
-                threshold: state.threshold || 0.38
+                threshold: state.threshold || 0.35
             })
         });
 

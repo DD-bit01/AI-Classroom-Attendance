@@ -1,3 +1,14 @@
+---
+title: AURA AI Classroom Attendance System
+emoji: 👁️
+colorFrom: green
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+short_description: Multi-Face AI Attendance System via ArcFace 512D & YuNet ONNX
+---
+
 # AURA.ai // Autonomous Facial Attendance & Biometric Intelligence Platform
 
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://python.org)

@@ -1,0 +1,14 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git/
+.gitignore
+.env
+scratch/
+test_images/
+annotated_samples/
+*.pptx
+*.pdf
+.system_generated/
