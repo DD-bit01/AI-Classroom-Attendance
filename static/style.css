@@ -2971,3 +2971,211 @@ select.form-control option {
     color: #fb7185;
     border: 1px solid rgba(244, 63, 94, 0.35);
 }
+
+/* ==========================================================================
+   Mobile Responsive Styles for Manage Course Roster Modal
+   ========================================================================== */
+@media (max-width: 680px) {
+    /* Modal container */
+    #modal-manage-roster.modal-backdrop {
+        align-items: flex-start !important;
+        padding-top: 10px !important;
+        padding-bottom: 76px !important;
+    }
+
+    #modal-manage-roster .modal-card {
+        width: 95% !important;
+        max-width: 95% !important;
+        max-height: 86vh !important;
+        padding: 14px 10px 18px 10px !important;
+        border-radius: 12px !important;
+    }
+
+    #modal-manage-roster .course-download-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        padding: 8px 10px !important;
+    }
+
+    #modal-manage-roster .course-download-bar .export-actions {
+        flex-wrap: wrap !important;
+        justify-content: stretch !important;
+    }
+
+    #modal-manage-roster .course-download-bar .export-actions .btn {
+        flex: 1 !important;
+        text-align: center !important;
+        justify-content: center !important;
+    }
+
+    /* 2x2 Clean Compact Filter Grid on Mobile */
+    .batch-filter-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px !important;
+    }
+
+    .batch-filter-grid select,
+    .batch-filter-grid input {
+        height: 32px !important;
+        font-size: 0.78rem !important;
+        padding: 4px 6px !important;
+    }
+
+    /* Transform Enrolled Students Table into Mobile Touch Cards */
+    #modal-manage-roster .table-container {
+        border: none !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        max-height: 48vh !important;
+        padding: 2px !important;
+    }
+
+    #modal-manage-roster .data-table {
+        display: block !important;
+        width: 100% !important;
+    }
+
+    #modal-manage-roster .data-table thead {
+        display: none !important;
+    }
+
+    #modal-manage-roster .data-table tbody {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 6px !important;
+        width: 100% !important;
+    }
+
+    #modal-manage-roster tr.enrolled-student-row {
+        display: grid !important;
+        grid-template-areas:
+            "check roll name pct"
+            "check cohort sess action" !important;
+        grid-template-columns: 26px auto 1fr auto !important;
+        align-items: center !important;
+        background: #111218 !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 8px !important;
+        padding: 8px 8px !important;
+        gap: 4px 6px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    #modal-manage-roster tr.enrolled-student-row.row-good {
+        border-left: 3px solid #22c55e !important;
+    }
+
+    #modal-manage-roster tr.enrolled-student-row.row-shortage {
+        border-left: 3px solid #ef4444 !important;
+    }
+
+    #modal-manage-roster tr.enrolled-student-row td {
+        display: flex !important;
+        align-items: center !important;
+        padding: 0 !important;
+        border: none !important;
+        min-width: 0 !important;
+    }
+
+    #modal-manage-roster tr.enrolled-student-row .col-check {
+        grid-area: check !important;
+        justify-content: center !important;
+    }
+
+    #modal-manage-roster tr.enrolled-student-row .col-roll {
+        grid-area: roll !important;
+        font-family: var(--font-mono) !important;
+        font-size: 0.76rem !important;
+        font-weight: 700 !important;
+        color: #f1f5f9 !important;
+        white-space: nowrap !important;
+    }
+
+    #modal-manage-roster tr.enrolled-student-row .col-name {
+        grid-area: name !important;
+        font-size: 0.78rem !important;
+        color: var(--text-secondary) !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    #modal-manage-roster tr.enrolled-student-row .col-pct {
+        grid-area: pct !important;
+        justify-content: flex-end !important;
+    }
+
+    #modal-manage-roster tr.enrolled-student-row .col-pct .badge {
+        font-size: 0.68rem !important;
+        padding: 2px 6px !important;
+    }
+
+    #modal-manage-roster tr.enrolled-student-row .col-cohort {
+        grid-area: cohort !important;
+        display: flex !important;
+        gap: 3px !important;
+        flex-wrap: nowrap !important;
+        overflow: hidden !important;
+    }
+
+    #modal-manage-roster tr.enrolled-student-row .col-cohort .badge-cohort {
+        font-size: 0.62rem !important;
+        padding: 1px 5px !important;
+    }
+
+    #modal-manage-roster tr.enrolled-student-row .col-sessions {
+        grid-area: sess !important;
+        font-family: var(--font-mono) !important;
+        font-size: 0.7rem !important;
+        color: var(--text-muted) !important;
+        white-space: nowrap !important;
+    }
+
+    #modal-manage-roster tr.enrolled-student-row .col-elig {
+        display: none !important;
+    }
+
+    #modal-manage-roster tr.enrolled-student-row .col-action {
+        grid-area: action !important;
+        justify-content: flex-end !important;
+    }
+
+    #modal-manage-roster tr.enrolled-student-row .col-action button {
+        padding: 2px 6px !important;
+        font-size: 0.68rem !important;
+        border-radius: 4px !important;
+    }
+
+    /* Unenrolled Checklist on Mobile */
+    .batch-student-checklist {
+        max-height: 180px !important;
+    }
+
+    .batch-student-item {
+        padding: 6px 8px !important;
+        gap: 6px !important;
+    }
+
+    .batch-student-item .student-meta {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 6px !important;
+    }
+
+    .batch-student-item .student-roll {
+        font-size: 0.75rem !important;
+    }
+
+    .batch-student-item .student-name {
+        font-size: 0.76rem !important;
+        max-width: 120px !important;
+    }
+
+    .batch-student-item .badge-cohort {
+        font-size: 0.62rem !important;
+        padding: 1px 5px !important;
+    }
+}

@@ -2259,25 +2259,25 @@ function renderRosterEnrolledTable() {
             const isChecked = rosterEnrolledState.selectedIds.has(s.student_id);
             const p = parseStudentRoll(s.roll_no);
             return `
-            <tr>
-                <td style="text-align: center;">
+            <tr class="enrolled-student-row ${isGood ? 'row-good' : 'row-shortage'}">
+                <td class="col-check" style="text-align: center;">
                     <input type="checkbox" class="check-enrolled-student" data-student-id="${s.student_id}" ${isChecked ? 'checked' : ''}>
                 </td>
-                <td><strong>${s.roll_no}</strong></td>
-                <td>${s.name}</td>
-                <td>${getCohortBadgeHtml(p)}</td>
-                <td>${s.attended_sessions} / ${s.total_sessions}</td>
-                <td>
+                <td class="col-roll"><strong>${s.roll_no}</strong></td>
+                <td class="col-name">${s.name}</td>
+                <td class="col-cohort">${getCohortBadgeHtml(p)}</td>
+                <td class="col-sessions">${s.attended_sessions} / ${s.total_sessions}</td>
+                <td class="col-pct">
                     <span class="badge ${isGood ? 'badge-present' : 'badge-absent'}">
                         ${s.percentage}%
                     </span>
                 </td>
-                <td>
+                <td class="col-elig">
                     <span class="attendance-status-tag ${isGood ? '' : 'shortage'}" style="margin: 0; font-size: 10px;">
                         ${isGood ? 'ELIGIBLE' : 'SHORTAGE'}
                     </span>
                 </td>
-                <td>
+                <td class="col-action">
                     <button class="btn-danger-outline btn-xs" onclick="unenrollStudentFromCourse(${s.student_id}, '${s.name.replace(/'/g, "\\'")}')">
                         ✕ Remove
                     </button>
