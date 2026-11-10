@@ -2651,41 +2651,6 @@ document.getElementById('course-roster-tbody')?.addEventListener('change', (e) =
     }
 });
 
-// Preset Buttons (works for roster modal)
-document.addEventListener('click', (e) => {
-    const chip = e.target.closest('.btn-batch-chip');
-    if (!chip) return;
-    const target = chip.getAttribute('data-target'); // 'roster'
-    if (target !== 'roster') return;
-    const batch = chip.getAttribute('data-batch') || '';
-    const degree = chip.getAttribute('data-degree') || '';
-    const dept = chip.getAttribute('data-dept') || '';
-
-    // Set filter inputs
-    const fDeg = document.getElementById('filter-roster-degree');
-    const fBat = document.getElementById('filter-roster-batch');
-    const fDep = document.getElementById('filter-roster-dept');
-    if (fDeg) fDeg.value = degree;
-    if (fBat) fBat.value = batch;
-    if (fDep) fDep.value = dept;
-
-    rosterBatchState.filters = { degree, batch, dept, search: '' };
-
-    // Auto-select all matching unenrolled students
-    let count = 0;
-    rosterBatchState.unenrolled.forEach(s => {
-        const p = parseStudentRoll(s.roll_no);
-        if (degree && p.degree !== degree) return;
-        if (batch && p.batchYear !== batch) return;
-        if (dept && p.dept !== dept) return;
-        rosterBatchState.selectedIds.add(s.id);
-        count++;
-    });
-
-    renderRosterUnenrolledChecklist();
-    showToast(`Selected ${count} student(s) for ${degree || ''} ${dept || ''} ${batch || ''}`);
-});
-
 // --- Modal Create Course Logic ---
 el.btnOpenCreateCourseModal.addEventListener('click', () => {
     openModal('modal-create-course');

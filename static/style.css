@@ -1409,7 +1409,9 @@ select.form-control option {
 }
 
 .modal-card.modal-lg {
-    max-width: 680px;
+    max-width: 880px;
+    max-height: 92vh;
+    overflow-y: auto;
 }
 
 .course-download-bar {
