@@ -628,24 +628,19 @@
 
     <!-- MODAL: CREATE COURSE -->
     <div class="modal-backdrop" id="modal-create-course" style="display:none;">
-        <div class="modal-card modal-lg">
+        <div class="modal-card">
             <div class="modal-header">
-                <div>
-                    <h3>Add New Academic Course</h3>
-                    <p class="text-muted" style="margin: 0; font-size: 0.82rem;">Create subject and configure initial batch enrollment</p>
-                </div>
+                <h3>Add New Academic Course</h3>
                 <button class="modal-close" data-close="modal-create-course">✕</button>
             </div>
             <form id="form-create-course">
-                <div class="form-row" style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px;">
-                    <div class="form-group">
-                        <label for="new-course-code">Course Code *</label>
-                        <input type="text" id="new-course-code" class="form-control" placeholder="e.g. ME204" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="new-course-name">Course Name *</label>
-                        <input type="text" id="new-course-name" class="form-control" placeholder="e.g. Thermodynamics" required>
-                    </div>
+                <div class="form-group">
+                    <label for="new-course-code">Course Code *</label>
+                    <input type="text" id="new-course-code" class="form-control" placeholder="e.g. ME204" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-course-name">Course Name *</label>
+                    <input type="text" id="new-course-name" class="form-control" placeholder="e.g. Thermodynamics" required>
                 </div>
                 <div class="form-group">
                     <label for="new-course-branch">Department / Target Branch *</label>
@@ -657,92 +652,6 @@
                         <option value="All Branches">All Branches</option>
                     </select>
                 </div>
-
-                <!-- Initial Enrollment Option -->
-                <div class="card mt-3" style="padding: 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: 8px;">
-                    <label style="font-weight: 600; font-size: 0.85rem; margin-bottom: 8px; display: block;">👥 Initial Student Enrollment</label>
-                    <div style="display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap;">
-                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem;">
-                            <input type="radio" name="create-course-enroll-mode" value="batch" checked>
-                            <span>Select Batches / Cohorts</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem;">
-                            <input type="radio" name="create-course-enroll-mode" value="all">
-                            <span>Enroll All Registered Students</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem;">
-                            <input type="radio" name="create-course-enroll-mode" value="none">
-                            <span>Empty (Enroll Later)</span>
-                        </label>
-                    </div>
-
-                    <!-- Batch Selector Container for Create Course -->
-                    <div id="create-course-batch-section">
-                        <!-- Quick batch presets -->
-                        <div class="batch-shortcut-pills" id="create-course-shortcut-pills">
-                            <span class="batch-shortcut-label">Quick Select:</span>
-                            <button type="button" class="btn-batch-chip" data-target="create" data-batch="2024" data-degree="" data-dept="">Batch 2024</button>
-                            <button type="button" class="btn-batch-chip" data-target="create" data-batch="2024" data-degree="Dual Degree" data-dept="Mech">Dual Degree Mech</button>
-                            <button type="button" class="btn-batch-chip" data-target="create" data-batch="2024" data-degree="Dual Degree" data-dept="CSE">Dual Degree CSE</button>
-                            <button type="button" class="btn-batch-chip" data-target="create" data-batch="2024" data-degree="Dual Degree" data-dept="ECE">Dual Degree ECE</button>
-                            <button type="button" class="btn-batch-chip" data-target="create" data-batch="2024" data-degree="B.Tech" data-dept="Mech">B.Tech Mech</button>
-                            <button type="button" class="btn-batch-chip" data-target="create" data-batch="2024" data-degree="B.Tech" data-dept="CSE">B.Tech CSE</button>
-                            <button type="button" class="btn-batch-chip" data-target="create" data-batch="2024" data-degree="B.Tech" data-dept="AI&DS">B.Tech AI&DS</button>
-                            <button type="button" class="btn-batch-chip" data-target="create" data-batch="2024" data-degree="B.Tech" data-dept="ECE">B.Tech ECE</button>
-                        </div>
-
-                        <!-- Filter row -->
-                        <div class="batch-filter-grid">
-                            <div>
-                                <label class="filter-mini-label">Degree</label>
-                                <select id="filter-create-degree" class="form-control form-control-sm">
-                                    <option value="">All Degrees</option>
-                                    <option value="B.Tech">B.Tech</option>
-                                    <option value="Dual Degree">Dual Degree</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="filter-mini-label">Batch / Year</label>
-                                <select id="filter-create-batch" class="form-control form-control-sm">
-                                    <option value="">All Batches</option>
-                                    <option value="2024">Batch 2024</option>
-                                    <option value="2025">Batch 2025</option>
-                                    <option value="2026">Batch 2026</option>
-                                    <option value="2023">Batch 2023</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="filter-mini-label">Department</label>
-                                <select id="filter-create-dept" class="form-control form-control-sm">
-                                    <option value="">All Departments</option>
-                                    <option value="Mech">Mechanical</option>
-                                    <option value="CSE">Computer Science</option>
-                                    <option value="AI&DS">AI & Data Science</option>
-                                    <option value="ECE">Electronics</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="filter-mini-label">Search</label>
-                                <input type="text" id="search-create-students" class="form-control form-control-sm" placeholder="Filter roll or name...">
-                            </div>
-                        </div>
-
-                        <div class="batch-checklist-toolbar">
-                            <span class="text-muted" id="create-selected-count-label">0 of 0 students selected</span>
-                            <div style="display: flex; gap: 6px;">
-                                <button type="button" class="btn btn-outline btn-xs" id="btn-create-select-filtered">Select Filtered</button>
-                                <button type="button" class="btn btn-outline btn-xs" id="btn-create-deselect-filtered">Deselect Filtered</button>
-                                <button type="button" class="btn btn-outline btn-xs" id="btn-create-clear-all">Clear All</button>
-                            </div>
-                        </div>
-
-                        <!-- Checkbox list -->
-                        <div class="batch-student-checklist" id="create-student-checklist">
-                            <!-- Populated dynamically -->
-                        </div>
-                    </div>
-                </div>
-
                 <div class="modal-footer" style="margin-top: 16px;">
                     <button type="button" class="btn btn-secondary" data-close="modal-create-course">Cancel</button>
                     <button type="submit" class="btn btn-primary" id="btn-submit-create-course">Create Course</button>

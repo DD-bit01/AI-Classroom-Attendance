@@ -560,7 +560,7 @@ class CreateCourseModel(BaseModel):
     code: str
     name: str
     branch: str
-    enroll_mode: Optional[str] = "all"
+    enroll_mode: Optional[str] = "none"
     student_ids: Optional[List[int]] = None
 
 @app.get("/api/courses")
@@ -573,13 +573,13 @@ async def create_course(payload: CreateCourseModel):
         cid = db.create_course(payload.code, payload.name, payload.branch)
         if payload.enroll_mode == "selected" and payload.student_ids:
             db.enroll_batch_students_in_course(cid, payload.student_ids)
-        elif payload.enroll_mode == "none":
-            pass
-        else:
-            # Default fallback: automatically enroll existing students
+        elif payload.enroll_mode == "all":
             students = db.get_all_students()
             for s in students:
                 db.enroll_student_in_course(cid, s["id"])
+        else:
+            # Clean start: empty roster ready for batch enrollment in Manage Roster modal
+            pass
         return {"success": True, "course_id": cid}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to create course: {str(e)}")

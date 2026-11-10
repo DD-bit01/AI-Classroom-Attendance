@@ -2161,13 +2161,6 @@ const rosterEnrolledState = {
     filters: { degree: '', batch: '', dept: '', search: '' }
 };
 
-// Create Course Batch State
-const createCourseBatchState = {
-    students: [],
-    selectedIds: new Set(),
-    filters: { degree: '', batch: '', dept: '', search: '' }
-};
-
 // --- Roster Unenrolled Checklist Rendering ---
 function renderRosterUnenrolledChecklist() {
     const container = document.getElementById('roster-unenrolled-checklist');
@@ -2301,53 +2294,6 @@ function renderRosterEnrolledTable() {
     }
     if (checkAll) {
         checkAll.checked = filtered.length > 0 && filtered.every(s => rosterEnrolledState.selectedIds.has(s.student_id));
-    }
-}
-
-// --- Create Course Checklist Rendering ---
-function renderCreateCourseChecklist() {
-    const container = document.getElementById('create-student-checklist');
-    const countLabel = document.getElementById('create-selected-count-label');
-    if (!container) return;
-
-    const { degree, batch, dept, search } = createCourseBatchState.filters;
-    const searchLow = (search || '').toLowerCase().trim();
-
-    const filtered = createCourseBatchState.students.filter(s => {
-        const p = parseStudentRoll(s.roll_no);
-        if (degree && p.degree !== degree) return false;
-        if (batch && p.batchYear !== batch) return false;
-        if (dept && p.dept !== dept) return false;
-        if (searchLow) {
-            const matchesRoll = s.roll_no.toLowerCase().includes(searchLow);
-            const matchesName = (s.name || '').toLowerCase().includes(searchLow);
-            if (!matchesRoll && !matchesName) return false;
-        }
-        return true;
-    });
-
-    if (filtered.length === 0) {
-        container.innerHTML = `<div style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">
-            No students match the selected filters.
-        </div>`;
-    } else {
-        container.innerHTML = filtered.map(s => {
-            const isSel = createCourseBatchState.selectedIds.has(s.id);
-            const p = parseStudentRoll(s.roll_no);
-            return `
-            <div class="batch-student-item ${isSel ? 'selected' : ''}" data-student-id="${s.id}">
-                <input type="checkbox" ${isSel ? 'checked' : ''} data-student-id="${s.id}">
-                <div class="student-meta">
-                    <span class="student-roll">${s.roll_no}</span>
-                    <span class="student-name">${s.name}</span>
-                    ${getCohortBadgeHtml(p)}
-                </div>
-            </div>`;
-        }).join('');
-    }
-
-    if (countLabel) {
-        countLabel.textContent = `${createCourseBatchState.selectedIds.size} of ${createCourseBatchState.students.length} students selected (${filtered.length} filtered)`;
     }
 }
 
@@ -2705,166 +2651,53 @@ document.getElementById('course-roster-tbody')?.addEventListener('change', (e) =
     }
 });
 
-// Preset Buttons (works for both roster and create modal)
+// Preset Buttons (works for roster modal)
 document.addEventListener('click', (e) => {
     const chip = e.target.closest('.btn-batch-chip');
     if (!chip) return;
-    const target = chip.getAttribute('data-target'); // 'roster' or 'create'
+    const target = chip.getAttribute('data-target'); // 'roster'
+    if (target !== 'roster') return;
     const batch = chip.getAttribute('data-batch') || '';
     const degree = chip.getAttribute('data-degree') || '';
     const dept = chip.getAttribute('data-dept') || '';
 
-    if (target === 'roster') {
-        // Set filter inputs
-        const fDeg = document.getElementById('filter-roster-degree');
-        const fBat = document.getElementById('filter-roster-batch');
-        const fDep = document.getElementById('filter-roster-dept');
-        if (fDeg) fDeg.value = degree;
-        if (fBat) fBat.value = batch;
-        if (fDep) fDep.value = dept;
+    // Set filter inputs
+    const fDeg = document.getElementById('filter-roster-degree');
+    const fBat = document.getElementById('filter-roster-batch');
+    const fDep = document.getElementById('filter-roster-dept');
+    if (fDeg) fDeg.value = degree;
+    if (fBat) fBat.value = batch;
+    if (fDep) fDep.value = dept;
 
-        rosterBatchState.filters = { degree, batch, dept, search: '' };
+    rosterBatchState.filters = { degree, batch, dept, search: '' };
 
-        // Auto-select all matching unenrolled students
-        let count = 0;
-        rosterBatchState.unenrolled.forEach(s => {
-            const p = parseStudentRoll(s.roll_no);
-            if (degree && p.degree !== degree) return;
-            if (batch && p.batchYear !== batch) return;
-            if (dept && p.dept !== dept) return;
-            rosterBatchState.selectedIds.add(s.id);
-            count++;
-        });
+    // Auto-select all matching unenrolled students
+    let count = 0;
+    rosterBatchState.unenrolled.forEach(s => {
+        const p = parseStudentRoll(s.roll_no);
+        if (degree && p.degree !== degree) return;
+        if (batch && p.batchYear !== batch) return;
+        if (dept && p.dept !== dept) return;
+        rosterBatchState.selectedIds.add(s.id);
+        count++;
+    });
 
-        renderRosterUnenrolledChecklist();
-        showToast(`Selected ${count} student(s) for ${degree || ''} ${dept || ''} ${batch || ''}`);
-    } else if (target === 'create') {
-        // Set filter inputs for create modal
-        const fDeg = document.getElementById('filter-create-degree');
-        const fBat = document.getElementById('filter-create-batch');
-        const fDep = document.getElementById('filter-create-dept');
-        if (fDeg) fDeg.value = degree;
-        if (fBat) fBat.value = batch;
-        if (fDep) fDep.value = dept;
-
-        createCourseBatchState.filters = { degree, batch, dept, search: '' };
-
-        // Auto-select matching students
-        let count = 0;
-        createCourseBatchState.students.forEach(s => {
-            const p = parseStudentRoll(s.roll_no);
-            if (degree && p.degree !== degree) return;
-            if (batch && p.batchYear !== batch) return;
-            if (dept && p.dept !== dept) return;
-            createCourseBatchState.selectedIds.add(s.id);
-            count++;
-        });
-
-        renderCreateCourseChecklist();
-        showToast(`Selected ${count} student(s) for ${degree || ''} ${dept || ''} ${batch || ''}`);
-    }
+    renderRosterUnenrolledChecklist();
+    showToast(`Selected ${count} student(s) for ${degree || ''} ${dept || ''} ${batch || ''}`);
 });
 
 // --- Modal Create Course Logic ---
-el.btnOpenCreateCourseModal.addEventListener('click', async () => {
-    try {
-        // Fetch fresh students list for initial enrollment selection
-        const res = await fetch('/api/students');
-        if (res.ok) {
-            createCourseBatchState.students = await res.json();
-            createCourseBatchState.selectedIds.clear();
-            createCourseBatchState.filters = { degree: '', batch: '', dept: '', search: '' };
-            renderCreateCourseChecklist();
-        }
-    } catch (err) {
-        console.error('Failed to load students for course creation:', err);
-    }
+el.btnOpenCreateCourseModal.addEventListener('click', () => {
     openModal('modal-create-course');
-});
-
-// Toggle enrollment section based on radio button
-document.querySelectorAll('input[name="create-course-enroll-mode"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-        const sec = document.getElementById('create-course-batch-section');
-        if (sec) {
-            sec.style.display = e.target.value === 'batch' ? 'block' : 'none';
-        }
-    });
-});
-
-// Create modal filters
-['filter-create-degree', 'filter-create-batch', 'filter-create-dept', 'search-create-students'].forEach(id => {
-    const elFilter = document.getElementById(id);
-    if (!elFilter) return;
-    const evtName = id.startsWith('search') ? 'input' : 'change';
-    elFilter.addEventListener(evtName, () => {
-        createCourseBatchState.filters.degree = document.getElementById('filter-create-degree')?.value || '';
-        createCourseBatchState.filters.batch = document.getElementById('filter-create-batch')?.value || '';
-        createCourseBatchState.filters.dept = document.getElementById('filter-create-dept')?.value || '';
-        createCourseBatchState.filters.search = document.getElementById('search-create-students')?.value || '';
-        renderCreateCourseChecklist();
-    });
-});
-
-// Create modal toolbar buttons
-document.getElementById('btn-create-select-filtered')?.addEventListener('click', () => {
-    const { degree, batch, dept, search } = createCourseBatchState.filters;
-    const searchLow = (search || '').toLowerCase().trim();
-    createCourseBatchState.students.forEach(s => {
-        const p = parseStudentRoll(s.roll_no);
-        if (degree && p.degree !== degree) return;
-        if (batch && p.batchYear !== batch) return;
-        if (dept && p.dept !== dept) return;
-        if (searchLow && !s.roll_no.toLowerCase().includes(searchLow) && !(s.name || '').toLowerCase().includes(searchLow)) return;
-        createCourseBatchState.selectedIds.add(s.id);
-    });
-    renderCreateCourseChecklist();
-});
-
-document.getElementById('btn-create-deselect-filtered')?.addEventListener('click', () => {
-    const { degree, batch, dept, search } = createCourseBatchState.filters;
-    const searchLow = (search || '').toLowerCase().trim();
-    createCourseBatchState.students.forEach(s => {
-        const p = parseStudentRoll(s.roll_no);
-        if (degree && p.degree !== degree) return;
-        if (batch && p.batchYear !== batch) return;
-        if (dept && p.dept !== dept) return;
-        if (searchLow && !s.roll_no.toLowerCase().includes(searchLow) && !(s.name || '').toLowerCase().includes(searchLow)) return;
-        createCourseBatchState.selectedIds.delete(s.id);
-    });
-    renderCreateCourseChecklist();
-});
-
-document.getElementById('btn-create-clear-all')?.addEventListener('click', () => {
-    createCourseBatchState.selectedIds.clear();
-    renderCreateCourseChecklist();
-});
-
-// Checklist item click in create modal
-document.getElementById('create-student-checklist')?.addEventListener('click', (e) => {
-    const item = e.target.closest('.batch-student-item');
-    if (!item) return;
-    const sid = parseInt(item.getAttribute('data-student-id'));
-    if (!sid) return;
-
-    if (createCourseBatchState.selectedIds.has(sid)) {
-        createCourseBatchState.selectedIds.delete(sid);
-    } else {
-        createCourseBatchState.selectedIds.add(sid);
-    }
-    renderCreateCourseChecklist();
 });
 
 // Form submit create course
 el.formCreateCourse.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const mode = document.querySelector('input[name="create-course-enroll-mode"]:checked')?.value || 'batch';
     const payload = {
         code: el.newCourseCode.value.trim(),
         name: el.newCourseName.value.trim(),
-        branch: el.newCourseBranch.value.trim(),
-        enroll_mode: mode,
-        student_ids: mode === 'batch' ? Array.from(createCourseBatchState.selectedIds) : []
+        branch: el.newCourseBranch.value.trim()
     };
 
     try {
