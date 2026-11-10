@@ -401,6 +401,52 @@ def unenroll_student_from_course(course_id: int, student_id: int):
     conn.commit()
     conn.close()
 
+def enroll_batch_students_in_course(course_id: int, student_ids: list):
+    if not student_ids:
+        return 0
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM sessions WHERE course_id = ?", (course_id,))
+    sessions = cursor.fetchall()
+    count = 0
+    for sid in student_ids:
+        cursor.execute(
+            "INSERT OR IGNORE INTO course_enrollments (course_id, student_id) VALUES (?, ?)",
+            (course_id, sid)
+        )
+        if cursor.rowcount > 0:
+            count += 1
+        for s in sessions:
+            cursor.execute(
+                """INSERT OR IGNORE INTO attendance (session_id, student_id, status, confidence, marked_method)
+                   VALUES (?, ?, 'Absent', 0.0, 'Initial')""",
+                (s["id"], sid)
+            )
+    conn.commit()
+    conn.close()
+    return count
+
+def unenroll_batch_students_from_course(course_id: int, student_ids: list):
+    if not student_ids:
+        return 0
+    conn = get_connection()
+    cursor = conn.cursor()
+    count = 0
+    for sid in student_ids:
+        cursor.execute(
+            "DELETE FROM course_enrollments WHERE course_id = ? AND student_id = ?",
+            (course_id, sid)
+        )
+        if cursor.rowcount > 0:
+            count += 1
+        cursor.execute("""
+            DELETE FROM attendance 
+            WHERE student_id = ? AND session_id IN (SELECT id FROM sessions WHERE course_id = ?)
+        """, (sid, course_id))
+    conn.commit()
+    conn.close()
+    return count
+
 def get_unenrolled_students(course_id: int):
     conn = get_connection()
     cursor = conn.cursor()

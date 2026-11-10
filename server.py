@@ -560,6 +560,8 @@ class CreateCourseModel(BaseModel):
     code: str
     name: str
     branch: str
+    enroll_mode: Optional[str] = "all"
+    student_ids: Optional[List[int]] = None
 
 @app.get("/api/courses")
 async def list_courses():
@@ -569,10 +571,15 @@ async def list_courses():
 async def create_course(payload: CreateCourseModel):
     try:
         cid = db.create_course(payload.code, payload.name, payload.branch)
-        # Automatically enroll existing students
-        students = db.get_all_students()
-        for s in students:
-            db.enroll_student_in_course(cid, s["id"])
+        if payload.enroll_mode == "selected" and payload.student_ids:
+            db.enroll_batch_students_in_course(cid, payload.student_ids)
+        elif payload.enroll_mode == "none":
+            pass
+        else:
+            # Default fallback: automatically enroll existing students
+            students = db.get_all_students()
+            for s in students:
+                db.enroll_student_in_course(cid, s["id"])
         return {"success": True, "course_id": cid}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to create course: {str(e)}")
@@ -588,6 +595,9 @@ async def get_unenrolled_students(course_id: int):
 class EnrollPayload(BaseModel):
     student_id: int
 
+class BatchEnrollPayload(BaseModel):
+    student_ids: List[int]
+
 @app.post("/api/courses/{course_id}/enroll")
 async def enroll_student(course_id: int, payload: Optional[EnrollPayload] = None, student_id: Optional[int] = Form(None)):
     sid = payload.student_id if payload else student_id
@@ -596,10 +606,24 @@ async def enroll_student(course_id: int, payload: Optional[EnrollPayload] = None
     db.enroll_student_in_course(course_id, sid)
     return {"success": True, "message": "Student enrolled successfully"}
 
+@app.post("/api/courses/{course_id}/enroll-batch")
+async def enroll_batch_students_endpoint(course_id: int, payload: BatchEnrollPayload):
+    if not payload.student_ids:
+        raise HTTPException(status_code=400, detail="student_ids cannot be empty")
+    count = db.enroll_batch_students_in_course(course_id, payload.student_ids)
+    return {"success": True, "enrolled_count": count, "message": f"Successfully enrolled {count} student(s) in course."}
+
 @app.post("/api/courses/{course_id}/unenroll")
 async def unenroll_student(course_id: int, payload: EnrollPayload):
     db.unenroll_student_from_course(course_id, payload.student_id)
     return {"success": True, "message": "Student unenrolled successfully"}
+
+@app.post("/api/courses/{course_id}/unenroll-batch")
+async def unenroll_batch_students_endpoint(course_id: int, payload: BatchEnrollPayload):
+    if not payload.student_ids:
+        raise HTTPException(status_code=400, detail="student_ids cannot be empty")
+    count = db.unenroll_batch_students_from_course(course_id, payload.student_ids)
+    return {"success": True, "unenrolled_count": count, "message": f"Successfully removed {count} student(s) from course."}
 
 @app.get("/api/courses/{course_id}/report")
 async def get_course_report(course_id: int):
