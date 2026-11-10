@@ -2139,8 +2139,8 @@ function parseStudentRoll(rollNo) {
 function getCohortBadgeHtml(parsed) {
     const degClass = parsed.isDual ? 'badge-cohort-dual' : 'badge-cohort-btech';
     const deptClass = `badge-cohort-${parsed.deptClass}`;
-    const yr = parsed.batchYear !== 'Unknown' ? "'" + parsed.batchYear.slice(-2) : '';
-    return `<span class="badge-cohort ${degClass}" title="${parsed.degree}">${parsed.degree === 'Dual Degree' ? 'DD' : 'BT'}</span> <span class="badge-cohort ${deptClass}">${yr} ${parsed.dept}</span>`;
+    const yr = parsed.batchYear !== 'Unknown' ? parsed.batchYear : '';
+    return `<span class="badge-cohort ${degClass}">${parsed.degree}</span> <span class="badge-cohort ${deptClass}">${yr ? yr + ' ' : ''}${parsed.dept}</span>`;
 }
 
 // ======================= COURSES TAB & ROSTER MANAGEMENT ======================= //
@@ -2158,7 +2158,7 @@ const rosterBatchState = {
 const rosterEnrolledState = {
     enrolled: [],
     selectedIds: new Set(),
-    filters: { cohort: '', search: '' }
+    filters: { degree: '', batch: '', dept: '', search: '' }
 };
 
 // Create Course Batch State
@@ -2192,9 +2192,15 @@ function renderRosterUnenrolledChecklist() {
         return true;
     });
 
-    if (filtered.length === 0) {
+    if (rosterBatchState.unenrolled.length === 0) {
+        container.innerHTML = `
+        <div style="padding: 16px; text-align: center; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 6px;">
+            <div style="font-weight: 700; color: #4ade80; margin-bottom: 4px;">✅ All registered students are currently enrolled in this course</div>
+            <div style="color: var(--text-secondary); font-size: 0.78rem;">All students are listed in the table below. Use the filters below to view cohorts, or click "Unenroll All" to start fresh.</div>
+        </div>`;
+    } else if (filtered.length === 0) {
         container.innerHTML = `<div style="padding: 18px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">
-            ${rosterBatchState.unenrolled.length === 0 ? 'All registered students are already enrolled in this course.' : 'No unenrolled students match the selected filters.'}
+            No unenrolled students match the selected filters.
         </div>`;
     } else {
         container.innerHTML = filtered.map(s => {
@@ -2229,30 +2235,17 @@ function renderRosterEnrolledTable() {
     const enrolledCountLabel = document.getElementById('enrolled-students-count');
     const bulkRemoveBtn = document.getElementById('btn-bulk-remove-enrolled');
     const bulkRemoveCount = document.getElementById('bulk-remove-count');
-    const cohortSelect = document.getElementById('filter-enrolled-cohort');
     const checkAll = document.getElementById('check-all-enrolled');
     if (!tbody) return;
 
-    // Populate cohort filter dropdown
-    if (cohortSelect) {
-        const currentCohort = rosterEnrolledState.filters.cohort || '';
-        const cohortMap = new Map();
-        rosterEnrolledState.enrolled.forEach(s => {
-            const p = parseStudentRoll(s.roll_no);
-            cohortMap.set(p.cohortLabel, (cohortMap.get(p.cohortLabel) || 0) + 1);
-        });
-        cohortSelect.innerHTML = `<option value="">All Cohorts / Batches (${rosterEnrolledState.enrolled.length})</option>` +
-            Array.from(cohortMap.entries()).sort((a,b) => a[0].localeCompare(b[0]))
-                .map(([cohort, count]) => `<option value="${cohort}">${cohort} (${count})</option>`).join('');
-        cohortSelect.value = currentCohort;
-    }
-
-    const { cohort, search } = rosterEnrolledState.filters;
+    const { degree, batch, dept, search } = rosterEnrolledState.filters;
     const searchLow = (search || '').toLowerCase().trim();
 
     const filtered = rosterEnrolledState.enrolled.filter(s => {
         const p = parseStudentRoll(s.roll_no);
-        if (cohort && p.cohortLabel !== cohort) return false;
+        if (degree && p.degree !== degree) return false;
+        if (batch && p.batchYear !== batch) return false;
+        if (dept && p.dept !== dept) return false;
         if (searchLow) {
             const matchesRoll = s.roll_no.toLowerCase().includes(searchLow);
             const matchesName = (s.name || '').toLowerCase().includes(searchLow);
@@ -2262,7 +2255,7 @@ function renderRosterEnrolledTable() {
     });
 
     if (enrolledCountLabel) {
-        enrolledCountLabel.textContent = `${rosterEnrolledState.enrolled.length} enrolled (${filtered.length} filtered)`;
+        enrolledCountLabel.textContent = `${rosterEnrolledState.enrolled.length} enrolled (${filtered.length} shown)`;
     }
 
     if (filtered.length === 0) {
@@ -2401,7 +2394,7 @@ window.openCourseRosterModal = async function(courseId) {
             el.selectUnenrolledStudent.innerHTML = `<option value="">-- Choose Student to Enroll (${unenrolled.length} available) --</option>` +
                 unenrolled.map(s => {
                     const p = parseStudentRoll(s.roll_no);
-                    return `<option value="${s.id}">${s.roll_no} - ${s.name} [${p.cohortLabel}]</option>`;
+                    return `<option value="${s.id}">${s.roll_no} - ${s.name} • ${p.cohortLabel}</option>`;
                 }).join('');
             el.btnDoEnrollStudent.disabled = false;
         }
@@ -2411,9 +2404,15 @@ window.openCourseRosterModal = async function(courseId) {
         // Set state for enrolled
         rosterEnrolledState.enrolled = report.students || [];
         rosterEnrolledState.selectedIds.clear();
-        rosterEnrolledState.filters = { cohort: '', search: '' };
+        rosterEnrolledState.filters = { degree: '', batch: '', dept: '', search: '' };
 
+        const fEnrDeg = document.getElementById('filter-enrolled-degree');
+        const fEnrBat = document.getElementById('filter-enrolled-batch');
+        const fEnrDep = document.getElementById('filter-enrolled-dept');
         const sEnrolled = document.getElementById('search-enrolled-roster');
+        if (fEnrDeg) fEnrDeg.value = '';
+        if (fEnrBat) fEnrBat.value = '';
+        if (fEnrDep) fEnrDep.value = '';
         if (sEnrolled) sEnrolled.value = '';
 
         renderRosterEnrolledTable();
@@ -2629,25 +2628,61 @@ document.getElementById('roster-unenrolled-checklist')?.addEventListener('click'
 });
 
 // Search & Filter for Enrolled Students
-['search-enrolled-roster', 'filter-enrolled-cohort'].forEach(id => {
+['filter-enrolled-degree', 'filter-enrolled-batch', 'filter-enrolled-dept', 'search-enrolled-roster'].forEach(id => {
     const elFilter = document.getElementById(id);
     if (!elFilter) return;
     const evtName = id.startsWith('search') ? 'input' : 'change';
     elFilter.addEventListener(evtName, () => {
+        rosterEnrolledState.filters.degree = document.getElementById('filter-enrolled-degree')?.value || '';
+        rosterEnrolledState.filters.batch = document.getElementById('filter-enrolled-batch')?.value || '';
+        rosterEnrolledState.filters.dept = document.getElementById('filter-enrolled-dept')?.value || '';
         rosterEnrolledState.filters.search = document.getElementById('search-enrolled-roster')?.value || '';
-        rosterEnrolledState.filters.cohort = document.getElementById('filter-enrolled-cohort')?.value || '';
         renderRosterEnrolledTable();
     });
+});
+
+// Quick Reset / Unenroll All from Course Roster
+document.getElementById('btn-quick-reset-roster')?.addEventListener('click', async () => {
+    if (!state.currentManageCourseId) return;
+    if (rosterEnrolledState.enrolled.length === 0) {
+        showToast('No students currently enrolled in this course', 'info');
+        return;
+    }
+    const confirmed = await showConfirm(
+        'Unenroll All Students',
+        `Unenroll all ${rosterEnrolledState.enrolled.length} students from this course? This will clear the course roster so you can select and enroll specific batches.`
+    );
+    if (!confirmed) return;
+
+    try {
+        const allIds = rosterEnrolledState.enrolled.map(s => s.student_id);
+        const res = await fetch(`/api/courses/${state.currentManageCourseId}/unenroll-batch`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ student_ids: allIds })
+        });
+        if (res.ok) {
+            showToast('Course roster cleared! All students are now available to enroll by batch.');
+            openCourseRosterModal(state.currentManageCourseId);
+            loadCourses();
+        } else {
+            showToast('Failed to clear course roster', 'error');
+        }
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
 });
 
 // Enrolled Checkboxes
 document.getElementById('check-all-enrolled')?.addEventListener('change', (e) => {
     const checked = e.target.checked;
-    const { cohort, search } = rosterEnrolledState.filters;
+    const { degree, batch, dept, search } = rosterEnrolledState.filters;
     const searchLow = (search || '').toLowerCase().trim();
     rosterEnrolledState.enrolled.forEach(s => {
         const p = parseStudentRoll(s.roll_no);
-        if (cohort && p.cohortLabel !== cohort) return;
+        if (degree && p.degree !== degree) return;
+        if (batch && p.batchYear !== batch) return;
+        if (dept && p.dept !== dept) return;
         if (searchLow && !s.roll_no.toLowerCase().includes(searchLow) && !(s.name || '').toLowerCase().includes(searchLow)) return;
         if (checked) {
             rosterEnrolledState.selectedIds.add(s.student_id);
