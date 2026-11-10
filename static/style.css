@@ -1633,14 +1633,35 @@ select.form-control option {
     background: #181820;
 }
 
-.mobile-camera-bar {
+/* =================== DESKTOP VS MOBILE SEPARATION UTILITIES =================== */
+.mobile-only {
+    display: none !important;
+}
+
+.mobile-only-flex {
+    display: none !important;
+}
+
+.desktop-only {
+    display: block;
+}
+
+.desktop-only-flex {
     display: flex;
+}
+
+.mobile-camera-bar {
+    display: none; /* STRICTLY HIDDEN ON DESKTOP */
     gap: 8px;
     margin-bottom: 12px;
 }
 
 .mobile-camera-bar .btn {
     min-height: 44px;
+}
+
+.mobile-https-tip {
+    display: none; /* STRICTLY HIDDEN ON DESKTOP */
 }
 
 .sidebar-backdrop {
@@ -1715,6 +1736,10 @@ select.form-control option {
 
 /* Responsive Media Queries */
 @media (max-width: 960px) {
+    .desktop-only, .desktop-only-flex {
+        display: none !important;
+    }
+
     .app-layout {
         flex-direction: column;
         height: auto;
@@ -1960,8 +1985,20 @@ select.form-control option {
         overflow-x: hidden !important;
     }
 
-    .desktop-only {
+    .desktop-only, .desktop-only-flex {
         display: none !important;
+    }
+
+    .mobile-only {
+        display: block !important;
+    }
+
+    .mobile-only-flex {
+        display: flex !important;
+    }
+
+    .mobile-https-tip {
+        display: block !important;
     }
 
     .mobile-bottom-nav {
@@ -3177,5 +3214,119 @@ select.form-control option {
     .batch-student-item .badge-cohort {
         font-size: 0.62rem !important;
         padding: 1px 5px !important;
+    }
+
+    /* Transform Class Sessions Table into Mobile Touch Cards */
+    #sessions-table {
+        display: block !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    #sessions-table thead {
+        display: none !important;
+    }
+
+    #sessions-table tbody {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    #sessions-table tr.session-row {
+        display: flex !important;
+        flex-direction: column !important;
+        background: #111218 !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 10px !important;
+        padding: 10px 12px !important;
+        gap: 6px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    #sessions-table tr.session-row td {
+        display: flex !important;
+        align-items: center !important;
+        padding: 0 !important;
+        border: none !important;
+        width: 100% !important;
+    }
+
+    #sessions-table tr.session-row td.col-date {
+        justify-content: space-between !important;
+        font-size: 0.8rem !important;
+        color: var(--text-muted) !important;
+    }
+
+    #sessions-table tr.session-row td.col-course {
+        gap: 6px !important;
+        font-weight: 600 !important;
+        font-size: 0.88rem !important;
+    }
+
+    #sessions-table tr.session-row td.col-title {
+        color: var(--text-main) !important;
+        font-size: 0.85rem !important;
+    }
+
+    #sessions-table tr.session-row td.col-status {
+        font-size: 0.8rem !important;
+        color: var(--text-secondary) !important;
+    }
+
+    #sessions-table tr.session-row td.col-pct {
+        margin: 2px 0 !important;
+    }
+
+    #sessions-table tr.session-row td.col-action button {
+        width: 100% !important;
+        justify-content: center !important;
+        margin-top: 4px !important;
+        padding: 8px !important;
+    }
+
+    /* Transform Student Portal History Table into Mobile Cards */
+    #tab-student-portal .data-table {
+        display: block !important;
+        width: 100% !important;
+    }
+
+    #tab-student-portal .data-table thead {
+        display: none !important;
+    }
+
+    #tab-student-portal .data-table tbody {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 6px !important;
+        width: 100% !important;
+    }
+
+    #tab-student-portal tr.portal-history-row {
+        display: flex !important;
+        flex-direction: column !important;
+        background: #111218 !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 8px !important;
+        padding: 8px 10px !important;
+        gap: 4px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    #tab-student-portal tr.portal-history-row td {
+        display: flex !important;
+        align-items: center !important;
+        padding: 0 !important;
+        border: none !important;
+        font-size: 0.8rem !important;
+    }
+
+    #tab-student-portal tr.portal-history-row td.col-method,
+    #tab-student-portal tr.portal-history-row td.col-time {
+        display: none !important;
     }
 }

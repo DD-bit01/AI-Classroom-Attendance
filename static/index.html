@@ -148,16 +148,13 @@
                         <div class="workspace-panel panel-visual">
                             <!-- Group Photo Mode -->
                             <div id="mode-panel-group-photo" class="mode-content active">
-                                <!-- Mobile Quick Camera Buttons -->
-                                <div class="mobile-camera-bar">
+                                <!-- Mobile Quick Camera Buttons (Only visible on Phone / Mobile) -->
+                                <div class="mobile-camera-bar mobile-only-flex">
                                     <button type="button" class="btn btn-primary btn-sm flex-1" id="btn-mobile-snap-photo">
                                         📸 Tap to Click Photo (Phone Camera)
                                     </button>
                                     <button type="button" class="btn btn-outline btn-sm flex-1" id="btn-mobile-gallery-photo">
                                         📁 Choose from Gallery
-                                    </button>
-                                    <button type="button" class="btn btn-outline btn-sm flex-1" id="btn-load-demo-photo" style="border-color:#38bdf8; color:#38bdf8; background:rgba(56, 189, 248, 0.08);">
-                                        ✨ Try Demo Classroom Photo (35+ Students)
                                     </button>
                                 </div>
                                 <input type="file" id="group-camera-input" accept="image/*" capture="environment" style="display:none;">
@@ -173,11 +170,13 @@
                                             </svg>
                                         </div>
                                         <h3>Upload Classroom Group Photos</h3>
-                                        <p>Tap camera above to snap multiple classroom angles (Left, Center, Right)</p>
+                                        <p class="desktop-only">Drag & Drop high-resolution classroom photos here, or click to browse files</p>
+                                        <p class="mobile-only">Tap below to choose photo, or use camera buttons above</p>
                                         <button type="button" id="btn-dropzone-demo" style="margin-top:8px; border:1px solid #38bdf8; color:#38bdf8; background:rgba(56, 189, 248, 0.12); font-size:12px; font-weight:600; padding:6px 14px; border-radius:6px; cursor:pointer;">
                                             ✨ Instant Demo: Click to load 35-student photo
                                         </button>
-                                        <span class="file-hint">Phone Camera, JPG, PNG, WEBP — Multi-angle support enabled</span>
+                                        <span class="file-hint desktop-only">Supports JPG, PNG, WEBP — Multi-angle classroom photos supported</span>
+                                        <span class="file-hint mobile-only">Supports JPG, PNG, WEBP photos</span>
                                     </div>
                                     <div class="dropzone-preview" id="group-preview-wrapper" style="display:none;">
                                         <div class="staged-photos-header">
@@ -222,7 +221,7 @@
 
                             <!-- Live Webcam Mode -->
                             <div id="mode-panel-live-webcam" class="mode-content">
-                                <div class="mobile-https-tip" id="mobile-webcam-tip" style="padding:10px 14px; background:rgba(56, 189, 248, 0.08); border:1px solid rgba(56, 189, 248, 0.25); border-radius:8px; font-size:12px; margin-bottom:12px; color:#bae6fd;">
+                                <div class="mobile-https-tip mobile-only" id="mobile-webcam-tip" style="padding:10px 14px; background:rgba(56, 189, 248, 0.08); border:1px solid rgba(56, 189, 248, 0.25); border-radius:8px; font-size:12px; margin-bottom:12px; color:#bae6fd;">
                                     💡 <strong>Mobile / Android Notice:</strong> Continuous webcam streaming requires HTTPS on Android Chrome. For instant 1-tap phone camera captures, tap <strong>Group Photo AI</strong> above!
                                 </div>
                                 <div class="webcam-viewport">
@@ -239,7 +238,7 @@
 
                                 <div class="webcam-controls">
                                     <button class="btn btn-primary" id="btn-start-webcam">Start Live Camera</button>
-                                    <button class="btn btn-outline" id="btn-flip-webcam">🔄 Flip Camera</button>
+                                    <button class="btn btn-outline mobile-only" id="btn-flip-webcam">🔄 Flip Camera</button>
                                     <button class="btn btn-outline" id="btn-toggle-boxes">👁️ Hide Boxes</button>
                                     <button class="btn btn-secondary" id="btn-stop-webcam" disabled>Stop</button>
                                     <button class="btn btn-outline" id="btn-snap-frame" disabled>Snap & Mark</button>
@@ -351,7 +350,7 @@
                     </div>
 
                     <div class="table-container card">
-                        <table class="data-table">
+                        <table class="data-table" id="sessions-table">
                             <thead>
                                 <tr>
                                     <th>Date</th>
@@ -514,7 +513,7 @@
                                         </div>
                                         <div class="mt-2" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                                             <button type="button" class="btn btn-secondary btn-sm" id="btn-reg-snap">📸 Snap Photo</button>
-                                            <button type="button" class="btn btn-outline btn-sm" id="btn-reg-flip-camera">🔄 Flip Camera</button>
+                                            <button type="button" class="btn btn-outline btn-sm mobile-only" id="btn-reg-flip-camera">🔄 Flip Camera</button>
                                             <span class="text-muted" style="font-size: 11px;">You can snap multiple angles!</span>
                                         </div>
                                     </div>

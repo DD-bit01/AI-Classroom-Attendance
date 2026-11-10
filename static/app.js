@@ -1612,18 +1612,18 @@ async function loadSessionsTable() {
         el.sessionsTableBody.innerHTML = sessions.map(s => {
             const pct = s.total_count > 0 ? Math.round((s.present_count / s.total_count) * 100) : 0;
             return `
-                <tr>
-                    <td>
+                <tr class="session-row">
+                    <td class="col-date">
                         <strong>${s.session_date}</strong>
                         ${s.session_time ? `<br><small class="text-muted" style="font-size: 0.78rem;">⏰ ${s.session_time}</small>` : ''}
                     </td>
-                    <td><span class="badge badge-outline">${s.course_code}</span> ${s.course_name}</td>
-                    <td>${s.title}</td>
-                    <td>${s.present_count} / ${s.total_count} Present</td>
-                    <td>
+                    <td class="col-course"><span class="badge badge-outline">${s.course_code}</span> <span class="course-name-text">${s.course_name}</span></td>
+                    <td class="col-title">${s.title}</td>
+                    <td class="col-status"><span class="session-count-text">${s.present_count} / ${s.total_count} Present</span></td>
+                    <td class="col-pct">
                         <span class="badge ${pct >= 75 ? 'badge-present' : 'badge-outline'}">${pct}%</span>
                     </td>
-                    <td>
+                    <td class="col-action">
                         <button class="btn btn-outline btn-sm" onclick="openSessionInAttendance(${s.id})">
                             Open in Attendance →
                         </button>
@@ -1802,17 +1802,17 @@ function renderStudentPortal(data) {
         el.portalHistoryTbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No attendance logs found</td></tr>`;
     } else {
         el.portalHistoryTbody.innerHTML = data.history.map(h => `
-            <tr>
-                <td><strong>${h.session_date}</strong></td>
-                <td><span class="badge badge-outline">${h.course_code}</span> ${h.course_name}</td>
-                <td>${h.session_title}</td>
-                <td>
+            <tr class="portal-history-row">
+                <td class="col-date"><strong>${h.session_date}</strong></td>
+                <td class="col-course"><span class="badge badge-outline">${h.course_code}</span> <span class="course-name-text">${h.course_name}</span></td>
+                <td class="col-title">${h.session_title}</td>
+                <td class="col-status">
                     <span class="badge ${h.status === 'Present' ? 'badge-present' : 'badge-absent'}">
                         ${h.status}
                     </span>
                 </td>
-                <td><span class="text-muted">${h.marked_method || 'Initial'}</span></td>
-                <td><span class="text-muted">${h.marked_at ? h.marked_at.split(' ')[1] : '-'}</span></td>
+                <td class="col-method"><span class="text-muted">${h.marked_method || 'Initial'}</span></td>
+                <td class="col-time"><span class="text-muted">${h.marked_at ? h.marked_at.split(' ')[1] : '-'}</span></td>
             </tr>
         `).join('');
     }
