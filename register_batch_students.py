@@ -113,10 +113,6 @@ for d in subdirs:
         email=email
     )
 
-    # Enroll in all courses
-    for c in courses:
-        db.enroll_student_in_course(c['id'], student_id)
-
     existing_rolls.add(roll)
     existing_names.add(name.lower())
     registered_count += 1

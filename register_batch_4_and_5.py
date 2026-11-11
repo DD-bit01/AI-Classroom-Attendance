@@ -194,10 +194,6 @@ for roll in all_rolls_sorted:
         registered_no_photos += 1
         status_tag = "REGISTERED (0 photos, pending capture)"
 
-    # Enroll in existing courses so student is in course rosters
-    for c in courses:
-        db.enroll_student_in_course(c['id'], student_id)
-
     existing_rolls.add(roll)
     print(f"[REGISTERED #{registered_with_photos + registered_no_photos:02d}] ID:{student_id:3d} | {roll:10} | {name:32} | {degree:11} | {batch:5} | {branch:6} | {status_tag}")
 

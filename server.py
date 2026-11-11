@@ -311,12 +311,7 @@ async def submit_student_onboarding(
         email=email
     )
 
-    # 7. Auto-enroll in all courses
-    courses = db.get_all_courses()
-    for c in courses:
-        db.enroll_student_in_course(c["id"], student_id)
-
-    # 8. Single-use token invalidation (anti-replay)
+    # 7. Single-use token invalidation (anti-replay)
     if token_payload and "jti" in token_payload:
         auth_service.consume_onboarding_token(token_payload["jti"])
 
@@ -434,14 +429,6 @@ async def register_student(
         photo_path=first_photo_path,
         embeddings=valid_embeddings
     )
-
-    # Auto-enroll new student only in matching branch courses or all-branch courses
-    courses = db.get_all_courses()
-    for c in courses:
-        c_branch = (c.get("branch") or "").strip().lower()
-        s_branch = (branch or "").strip().lower()
-        if c_branch in ["all", "all branches", "general"] or c_branch == s_branch:
-            db.enroll_student_in_course(c["id"], student_id)
 
     msg = f"Successfully registered {name} ({roll_no}) with {len(valid_embeddings)} facial embedding(s)!"
     if errors:
