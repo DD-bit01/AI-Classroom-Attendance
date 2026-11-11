@@ -435,10 +435,13 @@ async def register_student(
         embeddings=valid_embeddings
     )
 
-    # Automatically enroll new student in all existing courses
+    # Auto-enroll new student only in matching branch courses or all-branch courses
     courses = db.get_all_courses()
     for c in courses:
-        db.enroll_student_in_course(c["id"], student_id)
+        c_branch = (c.get("branch") or "").strip().lower()
+        s_branch = (branch or "").strip().lower()
+        if c_branch in ["all", "all branches", "general"] or c_branch == s_branch:
+            db.enroll_student_in_course(c["id"], student_id)
 
     msg = f"Successfully registered {name} ({roll_no}) with {len(valid_embeddings)} facial embedding(s)!"
     if errors:
